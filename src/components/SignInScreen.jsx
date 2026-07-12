@@ -9,10 +9,10 @@ export default function SignInScreen({ onSignIn, loading, error }) {
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-moss-500 rounded-t-sm" />
           </div>
         </div>
-        <h1 className="font-display text-3xl text-ink-800 mb-2">Calendar</h1>
+        <h1 className="font-display text-3xl text-ink-800 mb-2">LifeFlow</h1>
         <p className="text-ink-400 text-sm mb-8 leading-relaxed">
-          A fast, personal week calendar backed by your own Google Sheet.
-          Sign in to load and sync your events.
+          Your calendar, notes, journal, and reviews — one organic flow, backed by
+          your own Google Sheet. Sign in to load and sync.
         </p>
         <button
           onClick={onSignIn}
