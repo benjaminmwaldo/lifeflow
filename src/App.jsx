@@ -7,6 +7,7 @@ import NotesView from './components/NotesView'
 import JournalView from './components/JournalView'
 import ReviewsView from './components/ReviewsView'
 import GoalsView from './components/GoalsView'
+import ExportView from './components/ExportView'
 
 export default function App() {
   const [signedIn, setSignedIn] = useState(isSignedIn())
@@ -45,6 +46,7 @@ export default function App() {
         {active === 'journal' && <JournalView />}
         {active === 'reviews' && <ReviewsView />}
         {active === 'goals' && <GoalsView />}
+        {active === 'export' && <ExportView />}
       </div>
     </div>
   )

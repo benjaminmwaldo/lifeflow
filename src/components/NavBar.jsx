@@ -4,6 +4,7 @@ const MODULES = [
   { key: 'journal', label: 'Journal' },
   { key: 'reviews', label: 'Reviews' },
   { key: 'goals', label: 'Goals' },
+  { key: 'export', label: 'Export' },
 ]
 
 export default function NavBar({ active, onSelect, onSignOut }) {

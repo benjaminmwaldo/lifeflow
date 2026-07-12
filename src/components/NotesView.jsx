@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { useTable } from '../hooks/useTable'
 import { notesTable } from '../lib/tables'
 import { newId } from '../lib/id'
+import * as sheetsApi from '../lib/sheetsApi'
+import { toISODate, minutesToTime } from '../lib/dateUtils'
 
-// Ideas/notes capture. Each note can be "pinned" to the calendar or to one of
-// the Sunday review buckets — the Reviews module (next milestone) reads these.
+// Ideas/notes capture. Each note can be pinned to a Sunday review bucket (the
+// Reviews module reads these) or to the calendar — pinning to the calendar
+// creates a real 30-min event you can then drag to the right slot.
 const PIN_OPTIONS = [
   { value: '', label: 'Unpinned' },
   { value: 'calendar', label: '→ Calendar' },
@@ -22,6 +25,15 @@ const PIN_BADGE = {
   yearly: 'Yearly',
 }
 
+// A 30-min slot starting at the next half hour today (drag it afterwards).
+function nextSlotToday() {
+  const now = new Date()
+  let mins = now.getHours() * 60 + now.getMinutes()
+  mins = Math.ceil(mins / 30) * 30 + 30 // next half-hour boundary, then +30 for headroom
+  if (mins > 22 * 60) mins = 9 * 60 // if it's late, park it at 9am
+  return { date: toISODate(now), start: minutesToTime(mins), end: minutesToTime(mins + 30) }
+}
+
 export default function NotesView() {
   const notes = useTable(notesTable)
   const [draft, setDraft] = useState('')
@@ -33,13 +45,7 @@ export default function NotesView() {
   function addNote() {
     const text = draft.trim()
     if (!text) return
-    notes.add({
-      id: newId(),
-      created: new Date().toISOString(),
-      text,
-      pinned_to: '',
-      linked_event_id: '',
-    })
+    notes.add({ id: newId(), created: new Date().toISOString(), text, pinned_to: '', linked_event_id: '' })
     setDraft('')
   }
 
@@ -52,6 +58,37 @@ export default function NotesView() {
     const text = editText.trim()
     if (text && text !== note.text) notes.update({ ...note, text })
     setEditingRow(null)
+  }
+
+  // Changing the pin. Pinning to the calendar also creates a real event.
+  function changePin(note, value) {
+    if (value === 'calendar' && !note.linked_event_id) {
+      const slot = nextSlotToday()
+      const eventId = newId()
+      const event = {
+        id: eventId,
+        date: slot.date,
+        start_time: slot.start,
+        end_time: slot.end,
+        duration_min: '',
+        title: note.text,
+        notes: '',
+        recurrence_type: 'none',
+        recurrence_interval: 1,
+        recurrence_end: '',
+        recurrence_count: '',
+        is_exception: false,
+        exception_of_id: '',
+        exception_date: '',
+        is_cancelled: false,
+      }
+      notes.update({ ...note, pinned_to: 'calendar', linked_event_id: eventId })
+      sheetsApi
+        .createEvent(event)
+        .catch((e) => notes.setError('Pinned, but creating the calendar event failed: ' + (e.message || e)))
+    } else {
+      notes.update({ ...note, pinned_to: value })
+    }
   }
 
   return (
@@ -148,7 +185,7 @@ export default function NotesView() {
                   <div className="flex-1" />
                   <select
                     value={note.pinned_to || ''}
-                    onChange={(e) => notes.update({ ...note, pinned_to: e.target.value })}
+                    onChange={(e) => changePin(note, e.target.value)}
                     className="text-xs text-ink-500 bg-transparent border border-ink-100 rounded-lg px-2 h-7 focus:outline-none focus:border-moss-400"
                   >
                     {PIN_OPTIONS.map((o) => (
