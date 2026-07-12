@@ -11,16 +11,27 @@ export default function Toolbar({
   error,
   onDismissError,
   onSignOut,
+  embedded = false,
 }) {
   return (
-    <div className="border-b border-ink-100 bg-paper/95 backdrop-blur sticky top-0 z-30">
+    <div
+      className={
+        embedded
+          ? 'border-b border-ink-100 bg-paper'
+          : 'border-b border-ink-100 bg-paper/95 backdrop-blur sticky top-0 z-30'
+      }
+    >
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className="w-8 h-8 rounded-lg bg-ink-800 flex-shrink-0 flex items-center justify-center">
-          <div className="w-4 h-3 rounded-sm bg-paper relative">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-moss-500 rounded-t-sm" />
-          </div>
-        </div>
-        <h1 className="font-display text-xl text-ink-800 mr-2 hidden sm:block">Calendar</h1>
+        {!embedded && (
+          <>
+            <div className="w-8 h-8 rounded-lg bg-ink-800 flex-shrink-0 flex items-center justify-center">
+              <div className="w-4 h-3 rounded-sm bg-paper relative">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-moss-500 rounded-t-sm" />
+              </div>
+            </div>
+            <h1 className="font-display text-xl text-ink-800 mr-2 hidden sm:block">Calendar</h1>
+          </>
+        )}
 
         <div className="flex items-center gap-1">
           <button
@@ -72,12 +83,14 @@ export default function Toolbar({
           ))}
         </div>
 
-        <button
-          onClick={onSignOut}
-          className="text-xs text-ink-400 hover:text-ink-600 px-2 hidden sm:block"
-        >
-          Sign out
-        </button>
+        {!embedded && onSignOut && (
+          <button
+            onClick={onSignOut}
+            className="text-xs text-ink-400 hover:text-ink-600 px-2 hidden sm:block"
+          >
+            Sign out
+          </button>
+        )}
       </div>
       {error && (
         <div className="px-4 pb-2 -mt-1 flex items-center gap-2">
