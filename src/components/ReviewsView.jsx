@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTable } from '../hooks/useTable'
-import { goalsTable, reviewsTable } from '../lib/tables'
+import { goalsTable, reviewsTable, goalNotesTable } from '../lib/tables'
 import { useStore } from '../context/store'
 import { newId } from '../lib/id'
 import { toISODate, fromISODate } from '../lib/dateUtils'
@@ -17,18 +17,17 @@ export default function ReviewsView({ simplified = false }) {
   const store = useStore()
   const goals = useTable(goalsTable, { autoLoad: !simplified })
   const reviews = useTable(reviewsTable, { autoLoad: !simplified })
+  const goalNotes = useTable(goalNotesTable, { autoLoad: !simplified })
 
   const [type, setType] = useState('weekly')
   const [anchor, setAnchor] = useState(() => toISODate(anchorFor('weekly', new Date())))
 
   const existing = reviews.rows.find((r) => r.type === type && r.period_date === anchor)
   const [reflection, setReflection] = useState('')
-  const [goalReview, setGoalReview] = useState('')
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     setReflection(existing?.reflection || '')
-    setGoalReview(existing?.goal_review || '')
     setSaved(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, anchor, existing?.rowNumber, reviews.loading])
@@ -46,15 +45,27 @@ export default function ReviewsView({ simplified = false }) {
   const records = items.filter((n) => n.decision)
   const dueToday = reviewsDueOn(new Date())
 
-  const dirty = reflection !== (existing?.reflection || '') || goalReview !== (existing?.goal_review || '')
+  const dirty = reflection !== (existing?.reflection || '')
   function save() {
-    if (existing) reviews.update({ ...existing, reflection, goal_review: goalReview })
-    else reviews.add({ id: newId(), type, period_date: anchor, reflection, goal_review: goalReview, notes: '' })
+    if (existing) reviews.update({ ...existing, reflection })
+    else reviews.add({ id: newId(), type, period_date: anchor, reflection, goal_review: '', notes: '' })
     setSaved(true)
   }
   function cycleGoal(goal) {
     const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(goal.status) + 1) % STATUS_CYCLE.length]
     goals.update({ ...goal, status: next, updated: new Date().toISOString() })
+  }
+
+  // Group goals by their category (theme), preserving first-seen order.
+  const grouped = []
+  const seen = new Map()
+  for (const g of goals.rows) {
+    const cat = g.category || 'Other'
+    if (!seen.has(cat)) {
+      seen.set(cat, [])
+      grouped.push([cat, seen.get(cat)])
+    }
+    seen.get(cat).push(g)
   }
 
   return (
@@ -63,7 +74,7 @@ export default function ReviewsView({ simplified = false }) {
         <header className="mb-4">
           <h2 className="font-display text-2xl text-ink-800">Reviews</h2>
           <p className="text-sm text-ink-400 mt-0.5">
-            Adjudicate the ideas you pushed here, review goals, reflect.
+            Adjudicate the ideas you pushed here, review each goal, reflect.
             {dueToday.length > 0 && (
               <span className="text-moss-600"> Due today: {dueToday.map((t) => TYPE_LABEL[t]).join(', ')}.</span>
             )}
@@ -108,7 +119,7 @@ export default function ReviewsView({ simplified = false }) {
           )}
         </section>
 
-        {/* Adjudicated records (kept for the record) */}
+        {/* Adjudicated records */}
         {records.length > 0 && (
           <section className="mb-6">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2">Record</h3>
@@ -122,9 +133,7 @@ export default function ReviewsView({ simplified = false }) {
                     </span>
                   </div>
                   {n.adjudication && (
-                    <p className="text-xs text-ink-500 mt-1.5 whitespace-pre-wrap border-l-2 border-ink-100 pl-2">
-                      {n.adjudication}
-                    </p>
+                    <p className="text-xs text-ink-500 mt-1.5 whitespace-pre-wrap border-l-2 border-ink-100 pl-2">{n.adjudication}</p>
                   )}
                 </li>
               ))}
@@ -132,32 +141,34 @@ export default function ReviewsView({ simplified = false }) {
           </section>
         )}
 
-        {/* Goal review + reflection (hidden in the offline mock harness) */}
+        {/* Per-goal review (grouped by category) + reflection — hidden in the offline mock harness */}
         {!simplified && (
           <>
             <section className="mb-6">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2">Goal review</h3>
-              {goals.rows.length > 0 && (
-                <ul className="space-y-1 mb-2">
-                  {goals.rows.map((g) => (
-                    <li key={g.rowNumber} className="flex items-center gap-2.5 text-sm px-1">
-                      <button onClick={() => cycleGoal(g)} className={`text-base leading-none ${STATUS_STYLE[g.status] || 'text-ink-400'}`} title={g.status}>
-                        {STATUS_GLYPH[g.status] || '○'}
-                      </button>
-                      <span className={g.status === 'done' || g.status === 'dropped' ? 'text-ink-300 line-through' : 'text-ink-700'}>
-                        {g.text}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+              {goals.rows.length === 0 ? (
+                <p className="text-sm text-ink-300 py-3 px-3.5 border border-dashed border-ink-200 rounded-xl">
+                  No goals yet. Add them in the Goals tab and they'll appear here to review.
+                </p>
+              ) : (
+                grouped.map(([cat, gs]) => (
+                  <div key={cat} className="mb-4">
+                    <p className="text-sm font-medium text-ink-700 mb-2">{cat}</p>
+                    <div className="space-y-3 pl-1">
+                      {gs.map((g) => (
+                        <GoalReviewRow
+                          key={g.id || g.rowNumber}
+                          goal={g}
+                          type={type}
+                          anchor={anchor}
+                          goalNotes={goalNotes}
+                          onCycle={() => cycleGoal(g)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
               )}
-              <textarea
-                value={goalReview}
-                onChange={(e) => setGoalReview(e.target.value)}
-                placeholder="How are the goals going? What needs to change?"
-                rows={4}
-                className="w-full resize-y px-3.5 py-3 rounded-xl border border-ink-200 bg-white text-ink-800 placeholder-ink-300 leading-relaxed focus:outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100"
-              />
             </section>
 
             <section className="mb-4">
@@ -166,20 +177,59 @@ export default function ReviewsView({ simplified = false }) {
                 value={reflection}
                 onChange={(e) => setReflection(e.target.value)}
                 placeholder="What happened this period? What did you learn? What's next?"
-                rows={8}
+                rows={6}
                 className="w-full resize-y px-3.5 py-3 rounded-xl border border-ink-200 bg-white text-ink-800 placeholder-ink-300 leading-relaxed focus:outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100"
               />
+              <div className="flex items-center gap-3 mt-3">
+                <button onClick={save} disabled={!dirty} className="px-5 h-11 rounded-xl bg-ink-800 text-paper text-sm font-medium disabled:opacity-40 hover:bg-ink-700 transition-colors">
+                  {existing ? 'Update reflection' : 'Save reflection'}
+                </button>
+                {saved && !dirty && <span className="text-xs text-moss-500">Saved</span>}
+              </div>
             </section>
-
-            <div className="flex items-center gap-3">
-              <button onClick={save} disabled={!dirty} className="px-5 h-11 rounded-xl bg-ink-800 text-paper text-sm font-medium disabled:opacity-40 hover:bg-ink-700 transition-colors">
-                {existing ? 'Update review' : 'Save review'}
-              </button>
-              {saved && !dirty && <span className="text-xs text-moss-500">Saved</span>}
-            </div>
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+// One goal in a review: status dot + goal text + a write-in box saved per (period, goal).
+function GoalReviewRow({ goal, type, anchor, goalNotes, onCycle }) {
+  const existing = goalNotes.rows.find(
+    (r) => r.review_type === type && r.period_date === anchor && r.goal_id === goal.id
+  )
+  const [draft, setDraft] = useState(existing?.text || '')
+
+  useEffect(() => {
+    setDraft(existing?.text || '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, anchor, goal.id, existing?.rowNumber, goalNotes.loading])
+
+  function save() {
+    if (draft === (existing?.text || '')) return
+    if (existing) goalNotes.update({ ...existing, text: draft })
+    else goalNotes.add({ id: newId(), review_type: type, period_date: anchor, goal_id: goal.id, text: draft })
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <button onClick={onCycle} className={`text-base leading-none ${STATUS_STYLE[goal.status] || 'text-ink-400'}`} title={goal.status}>
+          {STATUS_GLYPH[goal.status] || '○'}
+        </button>
+        <span className={`text-sm ${goal.status === 'done' || goal.status === 'dropped' ? 'text-ink-300 line-through' : 'text-ink-700'}`}>
+          {goal.text}
+        </span>
+      </div>
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        placeholder="How did this go?"
+        rows={2}
+        className="w-full resize-y px-2.5 py-2 rounded-lg border border-ink-200 bg-white text-ink-700 text-sm placeholder-ink-300 focus:outline-none focus:border-moss-400"
+      />
     </div>
   )
 }
@@ -233,10 +283,7 @@ function ReviewNoteItem({ note, store, currentType, currentAnchor }) {
             <button onClick={() => setPushing(true)} className="px-3 h-7 rounded-lg bg-ink-100 text-ink-700 text-xs font-medium hover:bg-ink-200 transition-colors">
               Push onward →
             </button>
-            <button
-              onClick={() => store.resolveNote(note, adj)}
-              className="px-3 h-7 rounded-lg text-ink-500 text-xs font-medium hover:bg-ink-100 transition-colors"
-            >
+            <button onClick={() => store.resolveNote(note, adj)} className="px-3 h-7 rounded-lg text-ink-500 text-xs font-medium hover:bg-ink-100 transition-colors">
               Resolve
             </button>
           </div>

@@ -41,3 +41,10 @@ export const reviewsTable = createTable({
   tabName: 'Reviews',
   columns: ['id', 'type', 'period_date', 'reflection', 'goal_review', 'notes'],
 })
+
+// Per-goal review text: one row per (review period, goal). Lets each goal have
+// its own write-in box in a review, recreating the DJ F22+ weekly-review template.
+export const goalNotesTable = createTable({
+  tabName: 'GoalNotes',
+  columns: ['id', 'review_type', 'period_date', 'goal_id', 'text'],
+})
