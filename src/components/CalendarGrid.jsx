@@ -25,7 +25,7 @@ const MAX_PX = 4
 const DEFAULT_PX = 1.2
 
 export default function CalendarGrid({
-  weekStart,
+  days,
   granularity,
   getInstancesForRange,
   createSingleEvent,
@@ -33,13 +33,12 @@ export default function CalendarGrid({
   moveOrResizeInstance,
   deleteInstance,
 }) {
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
   const [now, setNow] = useState(() => new Date())
   const today = now
 
   const instances = useMemo(
-    () => getInstancesForRange(weekStart, addDays(weekStart, 6)),
-    [getInstancesForRange, weekStart]
+    () => getInstancesForRange(days[0], days[days.length - 1]),
+    [getInstancesForRange, days]
   )
 
   const instancesByDay = useMemo(() => {
@@ -112,7 +111,7 @@ export default function CalendarGrid({
     let preview
     if (d.type === 'move') {
       const dayDelta = Math.round(deltaX / d.colWidth)
-      const newDayIndex = clamp(d.startDayIndex + dayDelta, 0, 6)
+      const newDayIndex = clamp(d.startDayIndex + dayDelta, 0, days.length - 1)
       const minuteDelta = Math.round(deltaY / pxPerMin / granularity) * granularity
       const newStartMin = clamp(d.startMin + minuteDelta, DAY_START_MIN, DAY_END_MIN - d.duration)
       preview = { dayIndex: newDayIndex, startMin: newStartMin, duration: d.duration }
@@ -280,7 +279,8 @@ export default function CalendarGrid({
     // Paste onto the same weekday in the currently-viewed week. If that lands on
     // the exact source slot (same week), offset by its duration so it's visible.
     const dow = fromISODate(c.date).getDay()
-    const targetDate = toISODate(days[dow])
+    const target = days.find((d) => d.getDay() === dow) || days[0]
+    const targetDate = toISODate(target)
     let startMin = c.startMin
     if (targetDate === c.date) {
       startMin = clamp(startMin + c.duration, DAY_START_MIN, DAY_END_MIN - c.duration)

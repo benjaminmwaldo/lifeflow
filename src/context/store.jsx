@@ -156,6 +156,7 @@ export function StoreProvider({ persistence = realPersistence, children }) {
   const pushOnward = useCallback(
     async (note, target, adjudicationText) => {
       const before = { decision: note.decision || '', adjudication: note.adjudication || '' }
+      const adj = adjudicationText != null ? adjudicationText : note.adjudication || ''
       let decisionLabel
       let forwardUndo
       if (target.kind === 'calendar') {
@@ -169,12 +170,12 @@ export function StoreProvider({ persistence = realPersistence, children }) {
         decisionLabel = `→ Calendar (${ev.start_time})`
         forwardUndo = () => P.deleteEventById(ev.id)
       } else {
-        const fwd = freshNote(note.text, target.type, target.period)
+        // Carry the review text along with the note into the next review.
+        const fwd = { ...freshNote(note.text, target.type, target.period), adjudication: adj }
         await doCreate(fwd)
         decisionLabel = `→ ${LOCATION_LABEL[target.type]}`
         forwardUndo = () => doRemove(fwd.id)
       }
-      const adj = adjudicationText != null ? adjudicationText : note.adjudication || ''
       await doUpdate(note.id, { decision: decisionLabel, adjudication: adj })
       record(`Adjudicated “${shortText(note.text)}” ${decisionLabel}`, async () => {
         await forwardUndo()

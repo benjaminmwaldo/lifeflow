@@ -9,9 +9,6 @@ import { computeTargetPeriod, LOCATION_LABEL } from '../lib/notesLogic'
 
 const TYPE_LABEL = { weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' }
 const REVIEW_TARGETS = ['weekly', 'monthly', 'quarterly', 'yearly']
-const STATUS_GLYPH = { open: '○', in_motion: '◐', done: '●', dropped: '⊘' }
-const STATUS_CYCLE = ['open', 'in_motion', 'done', 'dropped']
-const STATUS_STYLE = { open: 'text-ink-400', in_motion: 'text-amber', done: 'text-moss-500', dropped: 'text-ink-300' }
 
 export default function ReviewsView({ simplified = false }) {
   const store = useStore()
@@ -51,15 +48,10 @@ export default function ReviewsView({ simplified = false }) {
     else reviews.add({ id: newId(), type, period_date: anchor, reflection, goal_review: '', notes: '' })
     setSaved(true)
   }
-  function cycleGoal(goal) {
-    const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(goal.status) + 1) % STATUS_CYCLE.length]
-    goals.update({ ...goal, status: next, updated: new Date().toISOString() })
-  }
-
-  // Group goals by their category (theme), preserving first-seen order.
+  // Group active goals by their category, preserving first-seen order.
   const grouped = []
   const seen = new Map()
-  for (const g of goals.rows) {
+  for (const g of goals.rows.filter((x) => x.status !== 'archived')) {
     const cat = g.category || 'Other'
     if (!seen.has(cat)) {
       seen.set(cat, [])
@@ -146,9 +138,9 @@ export default function ReviewsView({ simplified = false }) {
           <>
             <section className="mb-6">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2">Goal review</h3>
-              {goals.rows.length === 0 ? (
+              {grouped.length === 0 ? (
                 <p className="text-sm text-ink-300 py-3 px-3.5 border border-dashed border-ink-200 rounded-xl">
-                  No goals yet. Add them in the Goals tab and they'll appear here to review.
+                  No active goals. Add them in the Goals tab and they'll appear here to review.
                 </p>
               ) : (
                 grouped.map(([cat, gs]) => (
@@ -162,7 +154,6 @@ export default function ReviewsView({ simplified = false }) {
                           type={type}
                           anchor={anchor}
                           goalNotes={goalNotes}
-                          onCycle={() => cycleGoal(g)}
                         />
                       ))}
                     </div>
@@ -195,7 +186,7 @@ export default function ReviewsView({ simplified = false }) {
 }
 
 // One goal in a review: status dot + goal text + a write-in box saved per (period, goal).
-function GoalReviewRow({ goal, type, anchor, goalNotes, onCycle }) {
+function GoalReviewRow({ goal, type, anchor, goalNotes }) {
   const existing = goalNotes.rows.find(
     (r) => r.review_type === type && r.period_date === anchor && r.goal_id === goal.id
   )
@@ -214,14 +205,7 @@ function GoalReviewRow({ goal, type, anchor, goalNotes, onCycle }) {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-1">
-        <button onClick={onCycle} className={`text-base leading-none ${STATUS_STYLE[goal.status] || 'text-ink-400'}`} title={goal.status}>
-          {STATUS_GLYPH[goal.status] || '○'}
-        </button>
-        <span className={`text-sm ${goal.status === 'done' || goal.status === 'dropped' ? 'text-ink-300 line-through' : 'text-ink-700'}`}>
-          {goal.text}
-        </span>
-      </div>
+      <p className="text-sm font-medium text-ink-700 mb-1">{goal.text}</p>
       <textarea
         value={draft}
         onChange={(e) => setDraft(e.target.value)}

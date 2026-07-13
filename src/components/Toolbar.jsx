@@ -1,10 +1,23 @@
-import { addDays, formatWeekRangeLabel, startOfWeek } from '../lib/dateUtils'
+import { VIEW_MODES } from '../lib/calendarViews'
 
 const GRANULARITIES = [15, 30, 60]
 
+function rangeLabel(days) {
+  if (!days || !days.length) return ''
+  const first = days[0]
+  const last = days[days.length - 1]
+  const startStr = first.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  const endStr = last.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return days.length === 1 ? endStr : `${startStr} – ${endStr}`
+}
+
 export default function Toolbar({
-  weekStart,
-  setWeekStart,
+  days,
+  mode,
+  setMode,
+  onPrev,
+  onNext,
+  onToday,
   granularity,
   setGranularity,
   syncing,
@@ -21,7 +34,7 @@ export default function Toolbar({
           : 'border-b border-ink-100 bg-paper/95 backdrop-blur sticky top-0 z-30'
       }
     >
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-2 px-3 sm:px-4 py-3">
         {!embedded && (
           <>
             <div className="w-8 h-8 rounded-lg bg-ink-800 flex-shrink-0 flex items-center justify-center">
@@ -35,30 +48,28 @@ export default function Toolbar({
 
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setWeekStart((d) => addDays(d, -7))}
+            onClick={onPrev}
             className="w-8 h-8 rounded-lg hover:bg-ink-100 text-ink-500 flex items-center justify-center transition-colors"
-            aria-label="Previous week"
+            aria-label="Previous"
           >
             ‹
           </button>
           <button
-            onClick={() => setWeekStart(startOfWeek(new Date()))}
+            onClick={onToday}
             className="px-3 h-8 rounded-lg hover:bg-ink-100 text-ink-600 text-sm font-medium transition-colors"
           >
             Today
           </button>
           <button
-            onClick={() => setWeekStart((d) => addDays(d, 7))}
+            onClick={onNext}
             className="w-8 h-8 rounded-lg hover:bg-ink-100 text-ink-500 flex items-center justify-center transition-colors"
-            aria-label="Next week"
+            aria-label="Next"
           >
             ›
           </button>
         </div>
 
-        <span className="text-sm text-ink-500 font-medium hidden md:inline">
-          {formatWeekRangeLabel(weekStart)}
-        </span>
+        <span className="text-sm text-ink-500 font-medium hidden md:inline">{rangeLabel(days)}</span>
 
         <div className="flex-1" />
 
@@ -69,7 +80,21 @@ export default function Toolbar({
           </span>
         )}
 
-        <div className="flex items-center bg-ink-100 rounded-lg p-0.5">
+        {/* View span selector */}
+        <select
+          value={mode}
+          onChange={(e) => setMode(e.target.value)}
+          className="text-xs text-ink-600 bg-ink-100 rounded-lg px-2 h-8 focus:outline-none focus:ring-2 focus:ring-moss-400"
+          aria-label="Calendar view span"
+        >
+          {VIEW_MODES.map((v) => (
+            <option key={v.key} value={v.key}>
+              {v.label}
+            </option>
+          ))}
+        </select>
+
+        <div className="hidden sm:flex items-center bg-ink-100 rounded-lg p-0.5">
           {GRANULARITIES.map((g) => (
             <button
               key={g}
@@ -84,10 +109,7 @@ export default function Toolbar({
         </div>
 
         {!embedded && onSignOut && (
-          <button
-            onClick={onSignOut}
-            className="text-xs text-ink-400 hover:text-ink-600 px-2 hidden sm:block"
-          >
+          <button onClick={onSignOut} className="text-xs text-ink-400 hover:text-ink-600 px-2 hidden sm:block">
             Sign out
           </button>
         )}

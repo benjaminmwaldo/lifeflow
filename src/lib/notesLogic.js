@@ -43,9 +43,18 @@ export function computeTargetPeriod(type, currentType, currentPeriodISO) {
 // the visible day window (6:00–22:00).
 export function nowEventSlot() {
   const now = new Date()
+  // Snap to the calendar's selected granularity (default 30) so a spawned event
+  // locks to :00/:30 rather than an odd :15.
+  let step = 30
+  try {
+    const v = Number(localStorage.getItem('lifeflow.cal.granularity'))
+    if (v === 15 || v === 30 || v === 60) step = v
+  } catch {
+    // ignore
+  }
   let mins = now.getHours() * 60 + now.getMinutes()
-  mins = Math.round(mins / 15) * 15
-  mins = Math.min(Math.max(mins, 6 * 60), 22 * 60 - 30)
+  mins = Math.round(mins / step) * step
+  mins = Math.min(Math.max(mins, 0), 24 * 60 - 30)
   return { date: toISODate(now), start: minutesToTime(mins), end: minutesToTime(mins + 30) }
 }
 

@@ -1,22 +1,41 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useEvents } from '../hooks/useEvents'
 import Toolbar from './Toolbar'
 import CalendarGrid from './CalendarGrid'
-import { startOfWeek } from '../lib/dateUtils'
+import { toISODate, fromISODate, addDays } from '../lib/dateUtils'
+import { computeDays, navStep, defaultMode } from '../lib/calendarViews'
 
-// The calendar module, extracted from the old App root so it can live as one
-// tab among several. Behavior is unchanged from the standalone calendar.
+function readGranularity() {
+  const v = Number(localStorage.getItem('lifeflow.cal.granularity'))
+  return v === 15 || v === 30 || v === 60 ? v : 30
+}
+
 export default function CalendarView() {
-  const [granularity, setGranularity] = useState(30)
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
+  const [granularity, setGranularity] = useState(readGranularity)
+  const [mode, setMode] = useState(defaultMode)
+  const [anchor, setAnchor] = useState(() => toISODate(new Date()))
   const events = useEvents()
+
+  // Persist granularity so pushed-to-calendar events snap to the same increment.
+  useEffect(() => {
+    localStorage.setItem('lifeflow.cal.granularity', String(granularity))
+  }, [granularity])
+
+  const days = useMemo(() => computeDays(mode, fromISODate(anchor)), [mode, anchor])
+
+  const nav = (dir) => setAnchor(toISODate(addDays(fromISODate(anchor), navStep(mode) * dir)))
+  const goToday = () => setAnchor(toISODate(new Date()))
 
   return (
     <div className="h-full flex flex-col">
       <Toolbar
         embedded
-        weekStart={weekStart}
-        setWeekStart={setWeekStart}
+        days={days}
+        mode={mode}
+        setMode={setMode}
+        onPrev={() => nav(-1)}
+        onNext={() => nav(1)}
+        onToday={goToday}
         granularity={granularity}
         setGranularity={setGranularity}
         syncing={events.syncing}
@@ -30,7 +49,7 @@ export default function CalendarView() {
           </div>
         ) : (
           <CalendarGrid
-            weekStart={weekStart}
+            days={days}
             granularity={granularity}
             getInstancesForRange={events.getInstancesForRange}
             createSingleEvent={events.createSingleEvent}
