@@ -335,6 +335,11 @@ export default function CalendarGrid({
     setPendingAction(null)
   }
 
+  // During a drag, the dragged event is lifted out of its origin column and
+  // drawn as a live ghost in whatever day column the cursor is currently over.
+  const draggedKey = dragPreview?.instanceKey || null
+  const draggedInst = draggedKey ? instances.find((i) => i.instanceKey === draggedKey) : null
+
   const hours = []
   for (let h = DAY_START_MIN / 60; h <= DAY_END_MIN / 60; h++) hours.push(h)
 
@@ -388,40 +393,59 @@ export default function CalendarGrid({
               style={{ backgroundSize: `100% ${granularity * pxPerMin}px`, touchAction: 'pan-y' }}
               onPointerDown={(e) => handleColumnPointerDown(e, dayIndex)}
             >
-              {dayInstances.map((inst) => {
-                const isDragging = dragPreview?.instanceKey === inst.instanceKey
-                const startMin = isDragging ? dragPreview.startMin : timeToMinutes(inst.start_time)
-                const duration = isDragging
-                  ? dragPreview.duration
-                  : Number(inst.duration_min) || timeToMinutes(inst.end_time) - timeToMinutes(inst.start_time)
-                const top = (startMin - DAY_START_MIN) * pxPerMin
-                const height = Math.max(duration * pxPerMin, 16)
-                const widthPct = 100 / inst.maxCols
-                const leftPct = inst.colIndex * widthPct
+              {dayInstances
+                .filter((inst) => inst.instanceKey !== draggedKey)
+                .map((inst) => {
+                  const startMin = timeToMinutes(inst.start_time)
+                  const duration =
+                    Number(inst.duration_min) || timeToMinutes(inst.end_time) - timeToMinutes(inst.start_time)
+                  const top = (startMin - DAY_START_MIN) * pxPerMin
+                  const height = Math.max(duration * pxPerMin, 16)
+                  const widthPct = 100 / inst.maxCols
+                  const leftPct = inst.colIndex * widthPct
+                  const style = {
+                    top,
+                    height,
+                    left: `calc(${leftPct}% + 2px)`,
+                    width: `calc(${widthPct}% - 4px)`,
+                  }
+                  return (
+                    <EventBlock
+                      key={inst.instanceKey}
+                      instance={inst}
+                      style={style}
+                      compact={granularity === 15 && duration <= 15}
+                      editing={editingKey === inst.instanceKey}
+                      selected={selectedKey === inst.instanceKey}
+                      onCommitTitle={(t) => handleCommitTitle(inst, t)}
+                      onRequestDelete={() => handleRequestDelete(inst)}
+                      onRequestDetails={() => setDetailsInstance(inst)}
+                      onDragMoveStart={(e) => startDrag(e, inst, 'move')}
+                      onDragResizeStart={(e) => startDrag(e, inst, 'resize')}
+                    />
+                  )
+                })}
 
-                const style = {
-                  top,
-                  height,
-                  left: `calc(${leftPct}% + 2px)`,
-                  width: `calc(${widthPct}% - 4px)`,
-                }
-
-                return (
-                  <EventBlock
-                    key={inst.instanceKey}
-                    instance={inst}
-                    style={style}
-                    compact={granularity === 15 && duration <= 15}
-                    editing={editingKey === inst.instanceKey}
-                    selected={selectedKey === inst.instanceKey}
-                    onCommitTitle={(t) => handleCommitTitle(inst, t)}
-                    onRequestDelete={() => handleRequestDelete(inst)}
-                    onRequestDetails={() => setDetailsInstance(inst)}
-                    onDragMoveStart={(e) => startDrag(e, inst, 'move')}
-                    onDragResizeStart={(e) => startDrag(e, inst, 'resize')}
-                  />
-                )
-              })}
+              {/* Live drag ghost — follows the cursor across days and time. */}
+              {dragPreview && dragPreview.dayIndex === dayIndex && draggedInst && (
+                <div
+                  className="absolute rounded-lg px-2 py-1 bg-moss-100 border border-moss-400 shadow-pop z-40 pointer-events-none overflow-hidden"
+                  style={{
+                    top: (dragPreview.startMin - DAY_START_MIN) * pxPerMin,
+                    height: Math.max(dragPreview.duration * pxPerMin, 16),
+                    left: 'calc(0% + 2px)',
+                    width: 'calc(100% - 4px)',
+                    borderLeft: '3px solid #2F6F62',
+                  }}
+                >
+                  <p className="text-xs font-medium text-ink-800 truncate leading-tight">
+                    {draggedInst.title || 'Untitled'}
+                  </p>
+                  <p className="text-[10px] text-moss-600 truncate leading-tight">
+                    {formatTimeLabel(minutesToTime(dragPreview.startMin))}
+                  </p>
+                </div>
+              )}
 
               {isToday && (
                 <div
