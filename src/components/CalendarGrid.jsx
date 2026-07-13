@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   addDays,
   formatDayLabel,
   formatTimeLabel,
+  fromISODate,
   isSameDate,
   minutesToTime,
   timeToMinutes,
@@ -18,6 +19,8 @@ const DAY_END_MIN = 22 * 60
 const TOTAL_MIN = DAY_END_MIN - DAY_START_MIN
 const PX_PER_MIN = 1.2
 const GUTTER = 52
+const DOUBLE_CLICK_MS = 300
+const RENAME_DELAY_MS = 450
 
 export default function CalendarGrid({
   weekStart,
@@ -49,20 +52,31 @@ export default function CalendarGrid({
   }, [instances, days])
 
   const [editingKey, setEditingKey] = useState(null)
+  const [selectedKey, setSelectedKey] = useState(null)
   const [detailsInstance, setDetailsInstance] = useState(null)
   const [pendingAction, setPendingAction] = useState(null) // {instance, fields?, kind: 'move'|'edit'|'delete'}
   const [dragPreview, setDragPreview] = useState(null) // {instanceKey, dayIndex, startMin, duration}
 
   const dayColRefs = useRef([])
   const dragRef = useRef(null)
+  const clickRef = useRef({ time: 0, key: null }) // for double vs slow-double detection
+  const renameTimer = useRef(null)
+  const copiedRef = useRef(null) // {date, startMin, duration, title}
 
+  const findInstance = (key) => instances.find((i) => i.instanceKey === key)
+  const durationOf = (inst) =>
+    Number(inst.duration_min) || Math.max(granularity, timeToMinutes(inst.end_time) - timeToMinutes(inst.start_time))
+
+  // ---- Drag (move + resize). Authoritative values live in dragRef so the
+  // window listeners never read stale React state. ----
   function startDrag(e, instance, type) {
     e.preventDefault()
-    const dayIndex = days.findIndex((d) => isSameDate(d, new Date(instance.date + 'T00:00:00')))
+    const dayIndex = days.findIndex((d) => isSameDate(d, fromISODate(instance.date)))
     const colEl = dayColRefs.current[dayIndex]
     const colWidth = colEl ? colEl.getBoundingClientRect().width : 120
     const startMin = timeToMinutes(instance.start_time)
-    const duration = Number(instance.duration_min) || Math.max(granularity, timeToMinutes(instance.end_time) - startMin)
+    const duration = durationOf(instance)
+    const initial = { dayIndex, startMin, duration }
 
     dragRef.current = {
       type,
@@ -73,8 +87,10 @@ export default function CalendarGrid({
       startDayIndex: dayIndex,
       startMin,
       duration,
+      moved: false,
+      preview: initial,
     }
-    setDragPreview({ instanceKey: instance.instanceKey, dayIndex, startMin, duration })
+    setDragPreview({ instanceKey: instance.instanceKey, ...initial })
 
     window.addEventListener('pointermove', onDragMove)
     window.addEventListener('pointerup', onDragEnd)
@@ -86,18 +102,22 @@ export default function CalendarGrid({
     if (!d) return
     const deltaX = e.clientX - d.startClientX
     const deltaY = e.clientY - d.startClientY
+    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) d.moved = true
 
+    let preview
     if (d.type === 'move') {
       const dayDelta = Math.round(deltaX / d.colWidth)
       const newDayIndex = clamp(d.startDayIndex + dayDelta, 0, 6)
       const minuteDelta = Math.round(deltaY / PX_PER_MIN / granularity) * granularity
       const newStartMin = clamp(d.startMin + minuteDelta, DAY_START_MIN, DAY_END_MIN - d.duration)
-      setDragPreview({ instanceKey: d.instance.instanceKey, dayIndex: newDayIndex, startMin: newStartMin, duration: d.duration })
+      preview = { dayIndex: newDayIndex, startMin: newStartMin, duration: d.duration }
     } else {
       const minuteDelta = Math.round(deltaY / PX_PER_MIN / granularity) * granularity
       const newDuration = clamp(d.duration + minuteDelta, granularity, DAY_END_MIN - d.startMin)
-      setDragPreview({ instanceKey: d.instance.instanceKey, dayIndex: d.startDayIndex, startMin: d.startMin, duration: newDuration })
+      preview = { dayIndex: d.startDayIndex, startMin: d.startMin, duration: newDuration }
     }
+    d.preview = preview
+    setDragPreview({ instanceKey: d.instance.instanceKey, ...preview })
   }
 
   function onDragEnd() {
@@ -105,27 +125,63 @@ export default function CalendarGrid({
     window.removeEventListener('pointerup', onDragEnd)
     window.removeEventListener('pointercancel', onDragEnd)
     const d = dragRef.current
-    const preview = dragPreview
     dragRef.current = null
     setDragPreview(null)
-    if (!d || !preview) return
+    if (!d) return
 
+    const p = d.preview
     const changed =
-      preview.dayIndex !== d.startDayIndex || preview.startMin !== d.startMin || preview.duration !== d.duration
-    if (!changed) return
+      p.dayIndex !== d.startDayIndex || p.startMin !== d.startMin || p.duration !== d.duration
 
-    const newDate = toISODate(days[preview.dayIndex])
+    // No real drag → it was a click on the event body.
+    if (!d.moved || !changed) {
+      if (d.type === 'move') handleEventClick(d.instance)
+      return
+    }
+
+    const newDate = toISODate(days[p.dayIndex])
     const fields = {
       date: newDate,
-      start_time: minutesToTime(preview.startMin),
-      end_time: minutesToTime(preview.startMin + preview.duration),
-      duration_min: preview.duration,
+      start_time: minutesToTime(p.startMin),
+      end_time: minutesToTime(p.startMin + p.duration),
+      duration_min: p.duration,
     }
 
     if (d.instance.isRecurring) {
       setPendingAction({ instance: d.instance, fields, kind: 'move' })
     } else {
       moveOrResizeInstance(d.instance, fields, 'this')
+    }
+  }
+
+  // ---- Click semantics (file-explorer style) ----
+  // single click: select (or, if already selected, begin rename after a pause)
+  // fast double click: open full details
+  function handleEventClick(instance) {
+    const key = instance.instanceKey
+    const now = Date.now()
+    const isDouble = clickRef.current.key === key && now - clickRef.current.time < DOUBLE_CLICK_MS
+    clickRef.current = { time: now, key }
+
+    if (isDouble) {
+      if (renameTimer.current) {
+        clearTimeout(renameTimer.current)
+        renameTimer.current = null
+      }
+      setEditingKey(null)
+      setDetailsInstance(instance)
+      return
+    }
+
+    if (selectedKey === key) {
+      // Already selected → a deliberate second click means rename (slow double click).
+      if (renameTimer.current) clearTimeout(renameTimer.current)
+      renameTimer.current = setTimeout(() => {
+        renameTimer.current = null
+        setEditingKey(key)
+      }, RENAME_DELAY_MS)
+    } else {
+      setSelectedKey(key)
     }
   }
 
@@ -143,6 +199,7 @@ export default function CalendarGrid({
       const dx = Math.abs(upEv.clientX - startX)
       const dy = Math.abs(upEv.clientY - startY)
       if (dx < 4 && dy < 4) {
+        setSelectedKey(null) // clicking empty space deselects
         const minute = DAY_START_MIN + startOffsetY / PX_PER_MIN
         const snapped = Math.floor(minute / granularity) * granularity
         const clamped = clamp(snapped, DAY_START_MIN, DAY_END_MIN - granularity)
@@ -155,6 +212,60 @@ export default function CalendarGrid({
     }
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onUp)
+  }
+
+  // ---- Keyboard: copy / paste / delete / escape on the selected event ----
+  useEffect(() => {
+    function onKey(e) {
+      const el = document.activeElement
+      const typing =
+        el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+      if (typing || editingKey || detailsInstance || pendingAction) return
+
+      const meta = e.ctrlKey || e.metaKey
+      if (meta && (e.key === 'c' || e.key === 'C')) {
+        const inst = selectedKey && findInstance(selectedKey)
+        if (inst) {
+          copiedRef.current = {
+            date: inst.date,
+            startMin: timeToMinutes(inst.start_time),
+            duration: durationOf(inst),
+            title: inst.title,
+          }
+        }
+      } else if (meta && (e.key === 'v' || e.key === 'V')) {
+        pasteCopied()
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        const inst = selectedKey && findInstance(selectedKey)
+        if (inst) {
+          e.preventDefault()
+          setSelectedKey(null)
+          handleRequestDelete(inst)
+        }
+      } else if (e.key === 'Escape') {
+        setSelectedKey(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKey, editingKey, detailsInstance, pendingAction, instances, days])
+
+  function pasteCopied() {
+    const c = copiedRef.current
+    if (!c) return
+    // Paste onto the same weekday in the currently-viewed week. If that lands on
+    // the exact source slot (same week), offset by its duration so it's visible.
+    const dow = fromISODate(c.date).getDay()
+    const targetDate = toISODate(days[dow])
+    let startMin = c.startMin
+    if (targetDate === c.date) {
+      startMin = clamp(startMin + c.duration, DAY_START_MIN, DAY_END_MIN - c.duration)
+    }
+    const startTime = minutesToTime(startMin)
+    const endTime = minutesToTime(startMin + c.duration)
+    const newId = createSingleEvent(targetDate, startTime, endTime, c.title)
+    setSelectedKey(`${newId}::${targetDate}`)
   }
 
   function handleCommitTitle(instance, newTitle) {
@@ -279,8 +390,8 @@ export default function CalendarGrid({
                     style={style}
                     compact={granularity === 15 && duration <= 15}
                     editing={editingKey === inst.instanceKey}
+                    selected={selectedKey === inst.instanceKey}
                     onCommitTitle={(t) => handleCommitTitle(inst, t)}
-                    onRequestEdit={() => setEditingKey(inst.instanceKey)}
                     onRequestDelete={() => handleRequestDelete(inst)}
                     onRequestDetails={() => setDetailsInstance(inst)}
                     onDragMoveStart={(e) => startDrag(e, inst, 'move')}

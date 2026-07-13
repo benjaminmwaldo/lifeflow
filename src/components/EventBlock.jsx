@@ -5,8 +5,8 @@ export default function EventBlock({
   instance,
   style,
   editing,
+  selected,
   onCommitTitle,
-  onRequestEdit,
   onRequestDelete,
   onRequestDetails,
   onDragMoveStart,
@@ -31,9 +31,13 @@ export default function EventBlock({
     onCommitTitle(draftTitle.trim() || 'Untitled')
   }
 
+  const controlsVisible = selected && !editing
+
   return (
     <div
-      className="group absolute rounded-lg px-2 py-1 bg-moss-50 border border-moss-100 shadow-soft hover:shadow-pop hover:z-20 transition-shadow overflow-hidden select-none"
+      className={`group absolute rounded-lg px-2 py-1 bg-moss-50 border shadow-soft hover:shadow-pop hover:z-20 transition-shadow overflow-hidden select-none ${
+        selected ? 'border-moss-100 ring-2 ring-ink-800 z-30' : 'border-moss-100'
+      }`}
       style={{ ...style, borderLeft: '3px solid #2F6F62' }}
       data-event-block
       onPointerDown={(e) => {
@@ -41,16 +45,13 @@ export default function EventBlock({
         e.stopPropagation()
       }}
     >
+      {/* Body: drag to move; a plain press-release (no move) is a click, handled by the grid. */}
       <div
         className="absolute inset-0 cursor-grab active:cursor-grabbing"
         style={{ touchAction: 'none' }}
         onPointerDown={(e) => {
           if (editing) return
           onDragMoveStart(e)
-        }}
-        onDoubleClick={(e) => {
-          e.stopPropagation()
-          onRequestEdit()
         }}
       />
 
@@ -97,8 +98,25 @@ export default function EventBlock({
         </span>
       )}
 
+      {/* Hover/selected controls: details + delete. Keyboard (Del / dbl-click) covers desktop;
+          these give a tap target on mobile. */}
       {!editing && (
-        <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity pointer-events-auto">
+        <div
+          className={`absolute top-0.5 right-0.5 flex gap-0.5 transition-opacity pointer-events-auto ${
+            controlsVisible ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-active:opacity-100'
+          }`}
+        >
+          <button
+            className="w-5 h-5 rounded-full bg-white/90 text-ink-500 hover:text-ink-800 flex items-center justify-center text-[10px] leading-none shadow-soft"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              onRequestDetails()
+            }}
+            aria-label="Event details"
+          >
+            ⋯
+          </button>
           <button
             className="w-5 h-5 rounded-full bg-white/90 text-ink-500 hover:text-rose-500 flex items-center justify-center text-xs leading-none shadow-soft"
             onPointerDown={(e) => e.stopPropagation()}
@@ -112,30 +130,20 @@ export default function EventBlock({
           </button>
         </div>
       )}
-      {!editing && (
-        <button
-          className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white/90 text-ink-500 hover:text-ink-800 flex items-center justify-center text-[10px] leading-none shadow-soft opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity pointer-events-auto"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation()
-            onRequestDetails()
-          }}
-          aria-label="Event details"
-        >
-          ⋯
-        </button>
-      )}
 
-      <div
-        className="absolute bottom-0 left-0 right-0 h-2.5 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100"
-        style={{ touchAction: 'none' }}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          onDragResizeStart(e)
-        }}
-      >
-        <div className="mx-auto mt-1 w-6 h-0.5 rounded-full bg-moss-400" />
-      </div>
+      {/* Bottom resize handle: drag to change duration. */}
+      {!editing && (
+        <div
+          className="absolute bottom-0 left-0 right-0 h-3 cursor-ns-resize opacity-0 group-hover:opacity-100 group-active:opacity-100"
+          style={{ touchAction: 'none' }}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            onDragResizeStart(e)
+          }}
+        >
+          <div className="mx-auto mt-1.5 w-6 h-0.5 rounded-full bg-moss-400" />
+        </div>
+      )}
     </div>
   )
 }

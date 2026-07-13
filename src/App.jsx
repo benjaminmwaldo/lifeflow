@@ -8,8 +8,14 @@ import JournalView from './components/JournalView'
 import ReviewsView from './components/ReviewsView'
 import GoalsView from './components/GoalsView'
 import ExportView from './components/ExportView'
+import CalendarMock from './components/CalendarMock'
 
 export default function App() {
+  // Dev-only interaction harness (no sign-in). Never active in production builds.
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('mock')) {
+    return <CalendarMock />
+  }
+
   const [signedIn, setSignedIn] = useState(isSignedIn())
   const [authError, setAuthError] = useState(null)
   const [authLoading, setAuthLoading] = useState(false)
