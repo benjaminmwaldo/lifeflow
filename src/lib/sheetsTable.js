@@ -103,14 +103,18 @@ export function createTable({ tabName, columns }) {
 
   async function create(obj) {
     await ensureTab()
-    const res = await apiFetch(`/${SHEET_ID}/values/${enc}!A2:${lastCol}2:append`, {
-      method: 'POST',
-      params: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' },
+    // Write to an explicit next-empty row at column A rather than values.append.
+    // append() does fuzzy "table detection" and, when the schema has empty
+    // columns after the key (e.g. Notes' pinned_to/linked_event_id), it can
+    // place the new row shifted right. Reading column A gives an unambiguous
+    // next row and guarantees column-A alignment.
+    const colA = await apiFetch(`/${SHEET_ID}/values/${enc}!A1:A100000`)
+    const rowNumber = (colA.values ? colA.values.length : 0) + 1
+    await apiFetch(`/${SHEET_ID}/values/${enc}!A${rowNumber}:${lastCol}${rowNumber}`, {
+      method: 'PUT',
+      params: { valueInputOption: 'RAW' },
       body: { values: [objToRow(obj)] },
     })
-    const range = res.updates?.updatedRange || ''
-    const match = range.match(/(\d+):[A-Z]+(\d+)$/) || range.match(/!A(\d+)/)
-    const rowNumber = match ? Number(match[1] || match[2]) : undefined
     return { ...obj, rowNumber }
   }
 
