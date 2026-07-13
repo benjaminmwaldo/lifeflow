@@ -34,7 +34,8 @@ export default function CalendarGrid({
   deleteInstance,
 }) {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
-  const today = new Date()
+  const [now, setNow] = useState(() => new Date())
+  const today = now
 
   const instances = useMemo(
     () => getInstancesForRange(weekStart, addDays(weekStart, 6)),
@@ -267,6 +268,12 @@ export default function CalendarGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Tick the current-time line every minute.
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000)
+    return () => clearInterval(id)
+  }, [])
+
   function pasteCopied() {
     const c = copiedRef.current
     if (!c) return
@@ -415,6 +422,16 @@ export default function CalendarGrid({
                   />
                 )
               })}
+
+              {isToday && (
+                <div
+                  className="absolute left-0 right-0 z-10 pointer-events-none"
+                  style={{ top: (now.getHours() * 60 + now.getMinutes()) * pxPerMin }}
+                >
+                  <div className="border-t-2 border-rose-500" />
+                  <div className="absolute -left-[3px] -top-[4px] w-2 h-2 rounded-full bg-rose-500" />
+                </div>
+              )}
             </div>
           )
         })}
