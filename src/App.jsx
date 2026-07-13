@@ -8,12 +8,14 @@ import JournalView from './components/JournalView'
 import ReviewsView from './components/ReviewsView'
 import GoalsView from './components/GoalsView'
 import ExportView from './components/ExportView'
-import CalendarMock from './components/CalendarMock'
+import HistoryView from './components/HistoryView'
+import MockApp from './components/MockApp'
+import { StoreProvider } from './context/store'
 
 export default function App() {
-  // Dev-only interaction harness (no sign-in). Never active in production builds.
+  // Dev-only offline harness (no sign-in). Never active in production builds.
   if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('mock')) {
-    return <CalendarMock />
+    return <MockApp />
   }
 
   const [signedIn, setSignedIn] = useState(isSignedIn())
@@ -44,16 +46,19 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-paper">
-      <NavBar active={active} onSelect={setActive} onSignOut={handleSignOut} />
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {active === 'calendar' && <CalendarView />}
-        {active === 'notes' && <NotesView />}
-        {active === 'journal' && <JournalView />}
-        {active === 'reviews' && <ReviewsView />}
-        {active === 'goals' && <GoalsView />}
-        {active === 'export' && <ExportView />}
+    <StoreProvider>
+      <div className="h-screen flex flex-col bg-paper">
+        <NavBar active={active} onSelect={setActive} onSignOut={handleSignOut} />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {active === 'calendar' && <CalendarView />}
+          {active === 'notes' && <NotesView />}
+          {active === 'journal' && <JournalView />}
+          {active === 'reviews' && <ReviewsView />}
+          {active === 'goals' && <GoalsView />}
+          {active === 'export' && <ExportView />}
+          {active === 'history' && <HistoryView />}
+        </div>
       </div>
-    </div>
+    </StoreProvider>
   )
 }
