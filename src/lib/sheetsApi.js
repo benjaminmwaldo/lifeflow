@@ -24,7 +24,20 @@ export const COLUMNS = [
   'exception_of_id', // id of the master recurring event this overrides
   'exception_date', // the specific occurrence date this exception replaces (YYYY-MM-DD)
   'is_cancelled', // TRUE/FALSE — exception that deletes a single occurrence
+  'color', // event color key (see eventColors.js); '' = default
 ]
+
+// Last spreadsheet column letter for the current schema (kept in sync with COLUMNS).
+function colLetter(n) {
+  let s = ''
+  while (n > 0) {
+    const m = (n - 1) % 26
+    s = String.fromCharCode(65 + m) + s
+    n = Math.floor((n - 1) / 26)
+  }
+  return s
+}
+const LAST = colLetter(COLUMNS.length)
 
 let sheetMetaCache = null
 
@@ -75,7 +88,7 @@ export async function getSheetMeta({ force = false } = {}) {
   } else {
     // Make sure header row exists / is up to date on first read.
     const headerRes = await apiFetch(
-      `/${SHEET_ID}/values/${encodeURIComponent(TAB_NAME)}!A1:O1`
+      `/${SHEET_ID}/values/${encodeURIComponent(TAB_NAME)}!A1:${LAST}1`
     )
     const existingHeader = headerRes.values?.[0] || []
     if (existingHeader.length === 0) {
@@ -118,7 +131,7 @@ function eventToRow(event) {
 export async function listEvents() {
   await getSheetMeta()
   const res = await apiFetch(
-    `/${SHEET_ID}/values/${encodeURIComponent(TAB_NAME)}!A2:O100000`
+    `/${SHEET_ID}/values/${encodeURIComponent(TAB_NAME)}!A2:${LAST}100000`
   )
   const rows = res.values || []
   return rows
@@ -131,7 +144,7 @@ export async function createEvent(event) {
   await getSheetMeta()
   const values = [eventToRow(event)]
   const res = await apiFetch(
-    `/${SHEET_ID}/values/${encodeURIComponent(TAB_NAME)}!A2:O2:append`,
+    `/${SHEET_ID}/values/${encodeURIComponent(TAB_NAME)}!A2:${LAST}2:append`,
     {
       method: 'POST',
       params: { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' },
@@ -150,7 +163,7 @@ export async function updateEvent(event) {
   if (!event.rowNumber) throw new Error('updateEvent requires rowNumber')
   const values = [eventToRow(event)]
   await apiFetch(
-    `/${SHEET_ID}/values/${encodeURIComponent(TAB_NAME)}!A${event.rowNumber}:O${event.rowNumber}`,
+    `/${SHEET_ID}/values/${encodeURIComponent(TAB_NAME)}!A${event.rowNumber}:${LAST}${event.rowNumber}`,
     {
       method: 'PUT',
       params: { valueInputOption: 'RAW' },

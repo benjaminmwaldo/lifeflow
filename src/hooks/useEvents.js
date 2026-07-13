@@ -42,6 +42,7 @@ function materialize(masters, exceptionsByKey, rangeStart, rangeEnd) {
           duration_min: exception.duration_min,
           title: exception.title,
           notes: exception.notes,
+          color: exception.color,
           master,
         })
       } else {
@@ -58,6 +59,7 @@ function materialize(masters, exceptionsByKey, rangeStart, rangeEnd) {
           duration_min: master.duration_min,
           title: master.title,
           notes: master.notes,
+          color: master.color,
           master,
         })
       }

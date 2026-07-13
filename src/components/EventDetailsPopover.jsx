@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { EVENT_COLORS } from '../lib/eventColors'
 
 export default function EventDetailsPopover({ instance, onSave, onDelete, onClose }) {
   const [title, setTitle] = useState(instance.title)
   const [notes, setNotes] = useState(instance.notes || '')
+  const [color, setColor] = useState(instance.color || 'green')
   const [date, setDate] = useState(instance.date)
   const [startTime, setStartTime] = useState(instance.start_time)
   const [endTime, setEndTime] = useState(instance.end_time)
@@ -20,6 +22,7 @@ export default function EventDetailsPopover({ instance, onSave, onDelete, onClos
     const fields = {
       title: title.trim() || 'Untitled',
       notes,
+      color,
       date,
       start_time: startTime,
       end_time: endTime,
@@ -86,11 +89,28 @@ export default function EventDetailsPopover({ instance, onSave, onDelete, onClos
 
         <label className="block text-xs font-medium text-ink-500 mb-1">Description</label>
         <textarea
-          className="w-full mb-3 rounded-lg border border-ink-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-moss-400 resize-none"
-          rows={2}
+          className="w-full mb-3 rounded-lg border border-ink-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-moss-400 resize-y"
+          rows={6}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
+
+        <label className="block text-xs font-medium text-ink-500 mb-1">Color</label>
+        <div className="flex gap-2.5 mb-3">
+          {EVENT_COLORS.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => setColor(c.key)}
+              title={c.label}
+              aria-label={c.label}
+              className={`w-7 h-7 rounded-full transition-transform ${
+                color === c.key ? 'ring-2 ring-offset-2 ring-ink-800 scale-110' : 'hover:scale-105'
+              }`}
+              style={{ backgroundColor: c.border }}
+            />
+          ))}
+        </div>
 
         <div className="mb-4 border-t border-ink-100 pt-3">
           <label className="block text-xs font-medium text-ink-500 mb-1.5">Repeat</label>

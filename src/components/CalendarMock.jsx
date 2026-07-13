@@ -29,6 +29,7 @@ export default function CalendarMock() {
     duration_min: e.duration_min,
     title: e.title,
     notes: e.notes,
+    color: e.color,
   })
 
   const getInstancesForRange = useCallback(

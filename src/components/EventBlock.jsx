@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatTimeLabel } from '../lib/dateUtils'
+import { colorFor } from '../lib/eventColors'
 
 export default function EventBlock({
   instance,
@@ -15,6 +16,7 @@ export default function EventBlock({
 }) {
   const inputRef = useRef(null)
   const [draftTitle, setDraftTitle] = useState(instance.title)
+  const c = colorFor(instance.color)
 
   useEffect(() => {
     setDraftTitle(instance.title)
@@ -35,10 +37,10 @@ export default function EventBlock({
 
   return (
     <div
-      className={`group absolute rounded-lg px-2 py-1 bg-moss-50 border shadow-soft hover:shadow-pop hover:z-20 transition-shadow overflow-hidden select-none ${
-        selected ? 'border-moss-100 ring-2 ring-ink-800 z-30' : 'border-moss-100'
+      className={`group absolute rounded-lg px-2 py-1 shadow-soft hover:shadow-pop hover:z-20 transition-shadow overflow-hidden select-none ${
+        selected ? 'ring-2 ring-ink-800 z-30' : ''
       }`}
-      style={{ ...style, borderLeft: '3px solid #2F6F62' }}
+      style={{ ...style, backgroundColor: c.bg, border: `1px solid ${c.border}55`, borderLeft: `3px solid ${c.border}` }}
       data-event-block
       onPointerDown={(e) => {
         if (editing) return
@@ -80,7 +82,7 @@ export default function EventBlock({
               {instance.title || 'Untitled'}
             </p>
             {!compact && (
-              <p className="text-[10px] text-moss-600 truncate leading-tight">
+              <p className="text-[10px] truncate leading-tight" style={{ color: c.text }}>
                 {formatTimeLabel(instance.start_time)}
               </p>
             )}
