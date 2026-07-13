@@ -14,13 +14,15 @@ import EventBlock from './EventBlock'
 import EventDetailsPopover from './EventDetailsPopover'
 import RecurrenceScopePrompt from './RecurrenceScopePrompt'
 
-const DAY_START_MIN = 6 * 60
-const DAY_END_MIN = 22 * 60
+const DAY_START_MIN = 0 // midnight — full 24h grid, scrollable
+const DAY_END_MIN = 24 * 60 // midnight
 const TOTAL_MIN = DAY_END_MIN - DAY_START_MIN
-const PX_PER_MIN = 1.2
 const GUTTER = 52
 const DOUBLE_CLICK_MS = 300
 const RENAME_DELAY_MS = 450
+const MIN_PX = 0.5 // vertical zoom bounds (px per minute)
+const MAX_PX = 4
+const DEFAULT_PX = 1.2
 
 export default function CalendarGrid({
   weekStart,
@@ -56,7 +58,9 @@ export default function CalendarGrid({
   const [detailsInstance, setDetailsInstance] = useState(null)
   const [pendingAction, setPendingAction] = useState(null) // {instance, fields?, kind: 'move'|'edit'|'delete'}
   const [dragPreview, setDragPreview] = useState(null) // {instanceKey, dayIndex, startMin, duration}
+  const [pxPerMin, setPxPerMin] = useState(DEFAULT_PX)
 
+  const scrollRef = useRef(null)
   const dayColRefs = useRef([])
   const dragRef = useRef(null)
   const clickRef = useRef({ time: 0, key: null }) // for double vs slow-double detection
@@ -108,11 +112,11 @@ export default function CalendarGrid({
     if (d.type === 'move') {
       const dayDelta = Math.round(deltaX / d.colWidth)
       const newDayIndex = clamp(d.startDayIndex + dayDelta, 0, 6)
-      const minuteDelta = Math.round(deltaY / PX_PER_MIN / granularity) * granularity
+      const minuteDelta = Math.round(deltaY / pxPerMin / granularity) * granularity
       const newStartMin = clamp(d.startMin + minuteDelta, DAY_START_MIN, DAY_END_MIN - d.duration)
       preview = { dayIndex: newDayIndex, startMin: newStartMin, duration: d.duration }
     } else {
-      const minuteDelta = Math.round(deltaY / PX_PER_MIN / granularity) * granularity
+      const minuteDelta = Math.round(deltaY / pxPerMin / granularity) * granularity
       const newDuration = clamp(d.duration + minuteDelta, granularity, DAY_END_MIN - d.startMin)
       preview = { dayIndex: d.startDayIndex, startMin: d.startMin, duration: newDuration }
     }
@@ -200,7 +204,7 @@ export default function CalendarGrid({
       const dy = Math.abs(upEv.clientY - startY)
       if (dx < 4 && dy < 4) {
         setSelectedKey(null) // clicking empty space deselects
-        const minute = DAY_START_MIN + startOffsetY / PX_PER_MIN
+        const minute = DAY_START_MIN + startOffsetY / pxPerMin
         const snapped = Math.floor(minute / granularity) * granularity
         const clamped = clamp(snapped, DAY_START_MIN, DAY_END_MIN - granularity)
         const startTime = minutesToTime(clamped)
@@ -235,6 +239,12 @@ export default function CalendarGrid({
         }
       } else if (meta && (e.key === 'v' || e.key === 'V')) {
         pasteCopied()
+      } else if (meta && (e.key === '=' || e.key === '+')) {
+        e.preventDefault() // override browser zoom; scale the day taller
+        setPxPerMin((v) => clamp(Math.round((v + 0.2) * 10) / 10, MIN_PX, MAX_PX))
+      } else if (meta && e.key === '-') {
+        e.preventDefault()
+        setPxPerMin((v) => clamp(Math.round((v - 0.2) * 10) / 10, MIN_PX, MAX_PX))
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         const inst = selectedKey && findInstance(selectedKey)
         if (inst) {
@@ -250,6 +260,12 @@ export default function CalendarGrid({
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedKey, editingKey, detailsInstance, pendingAction, instances, days])
+
+  // Full day is 24h now; start scrolled to the morning so midnight isn't the default view.
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 7 * 60 * DEFAULT_PX
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function pasteCopied() {
     const c = copiedRef.current
@@ -316,7 +332,7 @@ export default function CalendarGrid({
   for (let h = DAY_START_MIN / 60; h <= DAY_END_MIN / 60; h++) hours.push(h)
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-thin">
+    <div ref={scrollRef} className="h-full overflow-y-auto scrollbar-thin">
       <div className="flex sticky top-0 z-20 bg-paper border-b border-ink-100">
         <div style={{ width: GUTTER }} className="flex-shrink-0" />
         {days.map((day) => {
@@ -338,13 +354,13 @@ export default function CalendarGrid({
         })}
       </div>
 
-      <div className="flex relative" style={{ height: TOTAL_MIN * PX_PER_MIN }}>
+      <div className="flex relative" style={{ height: TOTAL_MIN * pxPerMin }}>
         <div style={{ width: GUTTER }} className="relative flex-shrink-0">
           {hours.map((h) => (
             <div
               key={h}
               className="absolute right-1.5 -translate-y-1/2 text-[10px] text-ink-300 font-medium"
-              style={{ top: (h * 60 - DAY_START_MIN) * PX_PER_MIN }}
+              style={{ top: (h * 60 - DAY_START_MIN) * pxPerMin }}
             >
               {h % 24 === 0 ? '12 AM' : formatTimeLabel(`${h % 24}:00`)}
             </div>
@@ -362,7 +378,7 @@ export default function CalendarGrid({
               className={`flex-1 min-w-0 relative border-l border-ink-100 grid-hline ${
                 isToday ? 'bg-moss-50/30' : ''
               }`}
-              style={{ backgroundSize: `100% ${granularity * PX_PER_MIN}px`, touchAction: 'pan-y' }}
+              style={{ backgroundSize: `100% ${granularity * pxPerMin}px`, touchAction: 'pan-y' }}
               onPointerDown={(e) => handleColumnPointerDown(e, dayIndex)}
             >
               {dayInstances.map((inst) => {
@@ -371,8 +387,8 @@ export default function CalendarGrid({
                 const duration = isDragging
                   ? dragPreview.duration
                   : Number(inst.duration_min) || timeToMinutes(inst.end_time) - timeToMinutes(inst.start_time)
-                const top = (startMin - DAY_START_MIN) * PX_PER_MIN
-                const height = Math.max(duration * PX_PER_MIN, 16)
+                const top = (startMin - DAY_START_MIN) * pxPerMin
+                const height = Math.max(duration * pxPerMin, 16)
                 const widthPct = 100 / inst.maxCols
                 const leftPct = inst.colIndex * widthPct
 

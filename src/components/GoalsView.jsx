@@ -17,6 +17,8 @@ const STATUS_STYLE = {
 export default function GoalsView() {
   const goals = useTable(goalsTable)
   const [draft, setDraft] = useState('')
+  const [editingRow, setEditingRow] = useState(null)
+  const [editText, setEditText] = useState('')
 
   function addGoal() {
     const text = draft.trim()
@@ -36,13 +38,23 @@ export default function GoalsView() {
     goals.update({ ...goal, status: next, updated: new Date().toISOString() })
   }
 
+  function startEdit(goal) {
+    setEditingRow(goal.rowNumber)
+    setEditText(goal.text)
+  }
+  function saveEdit(goal) {
+    const text = editText.trim()
+    if (text && text !== goal.text) goals.update({ ...goal, text, updated: new Date().toISOString() })
+    setEditingRow(null)
+  }
+
   return (
     <div className="h-full overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 py-6">
         <header className="mb-4">
           <h2 className="font-display text-2xl text-ink-800">Goals</h2>
           <p className="text-sm text-ink-400 mt-0.5">
-            Click the status dot to cycle: open → in motion → done → dropped.
+            Click the dot to cycle status (open → in motion → done → dropped); click the text to rename.
           </p>
         </header>
 
@@ -78,7 +90,7 @@ export default function GoalsView() {
           <div className="text-sm text-ink-400 py-8 text-center">Loading goals…</div>
         ) : goals.rows.length === 0 ? (
           <div className="text-sm text-ink-300 py-12 text-center border border-dashed border-ink-200 rounded-xl">
-            No goals yet. Add one above (or ask Claude to import your goals tracker).
+            No goals yet. Add one above.
           </div>
         ) : (
           <ul className="space-y-1.5">
@@ -94,15 +106,34 @@ export default function GoalsView() {
                 >
                   {STATUS_GLYPH[goal.status] || '○'}
                 </button>
-                <span
-                  className={`flex-1 text-sm ${
-                    goal.status === 'done' || goal.status === 'dropped'
-                      ? 'text-ink-300 line-through'
-                      : 'text-ink-800'
-                  }`}
-                >
-                  {goal.text}
-                </span>
+                {editingRow === goal.rowNumber ? (
+                  <input
+                    autoFocus
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onBlur={() => saveEdit(goal)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        saveEdit(goal)
+                      }
+                      if (e.key === 'Escape') setEditingRow(null)
+                    }}
+                    className="flex-1 px-2 py-1 rounded-lg border border-moss-400 focus:outline-none text-ink-800 text-sm"
+                  />
+                ) : (
+                  <button
+                    onClick={() => startEdit(goal)}
+                    title="Click to rename"
+                    className={`flex-1 text-left text-sm ${
+                      goal.status === 'done' || goal.status === 'dropped'
+                        ? 'text-ink-300 line-through'
+                        : 'text-ink-800'
+                    }`}
+                  >
+                    {goal.text}
+                  </button>
+                )}
                 <button
                   onClick={() => goals.remove(goal.rowNumber)}
                   className="opacity-0 group-hover:opacity-100 text-ink-300 hover:text-rose-500 transition-opacity text-sm"

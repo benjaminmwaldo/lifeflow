@@ -84,7 +84,7 @@ export default function EventDetailsPopover({ instance, onSave, onDelete, onClos
           </div>
         </div>
 
-        <label className="block text-xs font-medium text-ink-500 mb-1">Notes</label>
+        <label className="block text-xs font-medium text-ink-500 mb-1">Description</label>
         <textarea
           className="w-full mb-3 rounded-lg border border-ink-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-moss-400 resize-none"
           rows={2}
