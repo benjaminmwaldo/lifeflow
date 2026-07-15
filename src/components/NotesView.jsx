@@ -38,8 +38,8 @@ export default function NotesView() {
         <header className="mb-4">
           <h2 className="font-display text-2xl text-ink-800">Notes &amp; Ideas</h2>
           <p className="text-sm text-ink-400 mt-0.5">
-            An inbox. Capture ideas here; <span className="text-ink-600">push</span> each to your calendar
-            or a review when you're ready — pushed notes leave the inbox.
+            An inbox. Capture ideas here; <span className="text-ink-600">push</span> each to your Google
+            Calendar or a review when you're ready — pushed notes leave the inbox.
           </p>
         </header>
 
@@ -125,7 +125,7 @@ export default function NotesView() {
                         onClick={() => push(note, 'calendar')}
                         className="px-2.5 h-7 rounded-lg bg-moss-500 text-white text-xs font-medium hover:bg-moss-600"
                       >
-                        Calendar
+                        Google Calendar
                       </button>
                       {REVIEW_TARGETS.map((t) => (
                         <button

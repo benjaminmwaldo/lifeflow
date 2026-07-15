@@ -26,7 +26,9 @@ function makeMemPersistence() {
       notes = notes.filter((x) => x.rowNumber !== rowNumber)
     },
     createEvent: async (ev) => {
-      events.push({ ...ev })
+      const row = { ...ev }
+      events.push(row)
+      return row
     },
     deleteEventById: async (id) => {
       events = events.filter((e) => e.id !== id)

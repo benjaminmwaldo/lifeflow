@@ -251,7 +251,7 @@ function ReviewNoteItem({ note, store, currentType, currentAnchor }) {
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-xs text-ink-400 mr-0.5">Push to:</span>
             <button onClick={() => forward('calendar')} className="px-2.5 h-7 rounded-lg bg-moss-500 text-white text-xs font-medium hover:bg-moss-600">
-              Calendar
+              Google Calendar
             </button>
             {REVIEW_TARGETS.map((t) => (
               <button key={t} onClick={() => forward(t)} className="px-2.5 h-7 rounded-lg border border-ink-200 text-ink-700 text-xs hover:bg-ink-50">

@@ -11,7 +11,7 @@ export const LOCATION_LABEL = {
   monthly: 'Monthly',
   quarterly: 'Quarterly',
   yearly: 'Yearly',
-  calendar: 'Calendar',
+  calendar: 'Google Calendar',
 }
 
 export function shortText(t, n = 32) {

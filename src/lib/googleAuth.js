@@ -3,7 +3,8 @@
 // for a static single-page app with no backend.
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
+const SCOPES =
+  'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar.events'
 const STORAGE_KEY = 'cal.googleToken'
 
 let tokenClient = null
