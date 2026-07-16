@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { notesTable } from '../lib/tables'
-import * as googleCalendarApi from '../lib/googleCalendarApi'
+import { openCalendarLink } from '../lib/googleCalendarLink'
 import { buildEventFromNote, LOCATION_LABEL, shortText } from '../lib/notesLogic'
 import { newId } from '../lib/id'
 
@@ -9,16 +9,17 @@ export const useStore = () => useContext(StoreContext)
 
 const normalizeNote = (row) => ({ ...row, location: row.location || 'inbox' })
 
-// Real persistence: notes tab (Sheet) + the user's real primary Google Calendar
-// (not the app's own Sheets-backed calendar — Benjamin prefers Google Calendar
-// as his actual calendar, so pushed notes land there directly).
+// Real persistence: notes tab (Sheet). Pushing to "Calendar" opens Google
+// Calendar's own prefilled compose link (no API, no OAuth scope, no cost) —
+// Benjamin prefers his real Google Calendar over the app's own Sheets-backed
+// calendar, and there's no event id/undo-delete to track since the user
+// saves the event themselves in the opened tab.
 export const realPersistence = {
   listNotes: () => notesTable.list().then((rows) => rows.map(normalizeNote)),
   createNote: (n) => notesTable.create(n),
   updateNote: (n) => notesTable.update(n),
   removeNote: (rowNumber) => notesTable.remove(rowNumber),
-  createEvent: (ev) => googleCalendarApi.createEvent(ev),
-  deleteEventById: (gcalId) => googleCalendarApi.deleteEvent(gcalId),
+  openCalendarLink: (ev) => openCalendarLink(ev),
 }
 
 function freshNote(text, location = 'inbox', period = '') {
@@ -132,21 +133,17 @@ export function StoreProvider({ persistence = realPersistence, children }) {
   )
 
   const pushToCalendar = useCallback(
-    async (note) => {
+    (note) => {
       const ev = buildEventFromNote(note.text)
       const snap = { ...note }
-      let created
-      try {
-        created = await P.createEvent(ev)
-      } catch (e) {
-        setError(e.message || String(e))
-        return
-      }
-      await doRemove(note.id)
-      record(`Pushed “${shortText(note.text)}” → Google Calendar (${ev.start_time})`, async () => {
-        await P.deleteEventById(created?.id)
-        await doCreate(freshNoteFromSnapshot(snap))
-      })
+      // Open synchronously (no await before this) so browsers don't treat it
+      // as a blocked popup — must run inside the click's user-gesture window.
+      P.openCalendarLink(ev)
+      doRemove(note.id)
+      record(
+        `Pushed “${shortText(note.text)}” → Google Calendar (opened ${ev.start_time}, save it there)`,
+        () => doCreate(freshNoteFromSnapshot(snap))
+      )
     },
     [P, doRemove, doCreate, record]
   )
@@ -160,15 +157,9 @@ export function StoreProvider({ persistence = realPersistence, children }) {
       let forwardUndo
       if (target.kind === 'calendar') {
         const ev = buildEventFromNote(note.text)
-        let created
-        try {
-          created = await P.createEvent(ev)
-        } catch (e) {
-          setError(e.message || String(e))
-          return
-        }
-        decisionLabel = `→ Google Calendar (${ev.start_time})`
-        forwardUndo = () => P.deleteEventById(created?.id)
+        P.openCalendarLink(ev)
+        decisionLabel = `→ Google Calendar (opened ${ev.start_time}, save it there)`
+        forwardUndo = () => {} // nothing to undo on the calendar side — the user saves it themselves
       } else {
         // Carry the review text along with the note into the next review.
         const fwd = { ...freshNote(note.text, target.type, target.period), adjudication: adj }

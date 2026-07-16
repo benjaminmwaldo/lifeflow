@@ -39,7 +39,8 @@ export default function NotesView() {
           <h2 className="font-display text-2xl text-ink-800">Notes &amp; Ideas</h2>
           <p className="text-sm text-ink-400 mt-0.5">
             An inbox. Capture ideas here; <span className="text-ink-600">push</span> each to your Google
-            Calendar or a review when you're ready — pushed notes leave the inbox.
+            Calendar (opens a prefilled tab there to save) or a review when you're ready — pushed
+            notes leave the inbox.
           </p>
         </header>
 

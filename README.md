@@ -37,15 +37,6 @@ JavaScript origin**:
    - `https://<your-username>.github.io` (once deployed — see below)
 4. Save. Changes can take a few minutes to propagate.
 
-Notes push to your real **Google Calendar** (not a Sheet tab), so two more
-one-time steps are needed on the same Cloud project:
-
-5. [Enable the Google Calendar API](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com)
-   for this project, same as the Sheets API.
-6. On the [OAuth consent screen → Data Access](https://console.cloud.google.com/auth/scopes),
-   add the `.../auth/calendar.events` scope (create-and-manage-your-own-events
-   only, not full calendar read/write) so the token request below succeeds.
-
 Also make sure the Google account you'll sign in with has **edit access**
 to the Sheet (open it once in Sheets and confirm you can type in a cell).
 The app will create an "Events" tab and header row automatically the first
@@ -60,9 +51,9 @@ npm run dev
 
 Opens at `http://localhost:5173`. Sign in with Google when prompted — this
 requests permission to read/write the one Sheet above (scope:
-`https://www.googleapis.com/auth/spreadsheets`) and to create/delete events on
-your primary Google Calendar (scope: `.../auth/calendar.events`) when you push
-a note to Calendar.
+`https://www.googleapis.com/auth/spreadsheets`). Pushing a note to Calendar
+opens Google Calendar's own prefilled "add event" link in a new tab (no
+Calendar API, no extra scope, no cost) — you review and save it there.
 
 Config lives in `.env` (already filled in with the values above; see
 `.env.example`). No secrets are stored — everything in `.env` is public

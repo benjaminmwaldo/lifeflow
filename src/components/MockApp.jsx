@@ -25,13 +25,10 @@ function makeMemPersistence() {
     removeNote: async (rowNumber) => {
       notes = notes.filter((x) => x.rowNumber !== rowNumber)
     },
-    createEvent: async (ev) => {
-      const row = { ...ev }
-      events.push(row)
-      return row
-    },
-    deleteEventById: async (id) => {
-      events = events.filter((e) => e.id !== id)
+    openCalendarLink: (ev) => {
+      // Record instead of actually opening a real Google Calendar tab, so the
+      // offline harness stays deterministic and inspectable via _debug().
+      events.push({ ...ev })
     },
     _debug: () => ({ notes: clone(notes), events: clone(events) }),
   }
