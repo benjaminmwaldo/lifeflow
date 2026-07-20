@@ -9,6 +9,24 @@ import { computeTargetPeriod, LOCATION_LABEL } from '../lib/notesLogic'
 
 const TYPE_LABEL = { weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' }
 const REVIEW_TARGETS = ['weekly', 'monthly', 'quarterly', 'yearly']
+const AI_CHECKINS = {
+  weekly: {
+    prompt: 'Weekly check-in',
+    detail: 'Codex will aggregate the daily pulses, administer WHO-5 and the four faith anchors, run the rotating module due, and review the active experiment.',
+  },
+  monthly: {
+    prompt: 'Monthly check-in',
+    detail: 'Codex will run the weekly cycle, administer the full FCP-12 and any monthly measure due, summarize the month, and review the experiment trend.',
+  },
+  quarterly: {
+    prompt: 'Quarterly check-in',
+    detail: 'Codex will run the current weekly cycle, administer quarterly calibrations such as life satisfaction and financial well-being, and review goals and measurement burden.',
+  },
+  yearly: {
+    prompt: 'Yearly optimization review',
+    detail: 'Codex will compare the year with prior baselines, review every life domain and experiment, retire stale measures, and design the next cycle.',
+  },
+}
 
 export default function ReviewsView({ simplified = false }) {
   const store = useStore()
@@ -21,10 +39,12 @@ export default function ReviewsView({ simplified = false }) {
 
   const existing = reviews.rows.find((r) => r.type === type && r.period_date === anchor)
   const [reflection, setReflection] = useState('')
+  const [aiCheckinDone, setAiCheckinDone] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     setReflection(existing?.reflection || '')
+    setAiCheckinDone(existing?.ai_checkin_done === true || existing?.ai_checkin_done === 'TRUE')
     setSaved(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, anchor, existing?.rowNumber, reviews.loading])
@@ -42,10 +62,11 @@ export default function ReviewsView({ simplified = false }) {
   const records = items.filter((n) => n.decision)
   const dueToday = reviewsDueOn(new Date())
 
-  const dirty = reflection !== (existing?.reflection || '')
+  const existingAiDone = existing?.ai_checkin_done === true || existing?.ai_checkin_done === 'TRUE'
+  const dirty = reflection !== (existing?.reflection || '') || aiCheckinDone !== existingAiDone
   function save() {
-    if (existing) reviews.update({ ...existing, reflection })
-    else reviews.add({ id: newId(), type, period_date: anchor, reflection, goal_review: '', notes: '' })
+    if (existing) reviews.update({ ...existing, reflection, ai_checkin_done: aiCheckinDone })
+    else reviews.add({ id: newId(), type, period_date: anchor, reflection, goal_review: '', notes: '', ai_checkin_done: aiCheckinDone })
     setSaved(true)
   }
   // Group active goals by their category, preserving first-seen order.
@@ -94,6 +115,30 @@ export default function ReviewsView({ simplified = false }) {
         </div>
 
         {store.error && <div className="mb-3 text-xs text-rose-500">{store.error}</div>}
+
+        <section className="mb-6 rounded-xl border border-moss-200 bg-moss-50/60 p-4">
+            <div className="flex items-start gap-3">
+              <input
+                id="ai-checkin-done"
+                type="checkbox"
+                checked={aiCheckinDone}
+                onChange={(event) => {
+                  setAiCheckinDone(event.target.checked)
+                  setSaved(false)
+                }}
+                className="mt-1 h-4 w-4 accent-moss-600"
+              />
+              <div>
+                <label htmlFor="ai-checkin-done" className="text-sm font-medium text-ink-800 cursor-pointer">
+                  Complete the AI check-in
+                </label>
+                <p className="text-sm text-ink-600 mt-1">
+                  Open a fresh Codex chat and say <code className="px-1.5 py-0.5 rounded bg-white border border-moss-100 text-moss-700">{AI_CHECKINS[type].prompt}</code>.
+                </p>
+                <p className="text-xs text-ink-400 mt-1.5 leading-relaxed">{AI_CHECKINS[type].detail}</p>
+              </div>
+            </div>
+        </section>
 
         {/* Pending pushed ideas */}
         <section className="mb-6">
@@ -173,7 +218,7 @@ export default function ReviewsView({ simplified = false }) {
               />
               <div className="flex items-center gap-3 mt-3">
                 <button onClick={save} disabled={!dirty} className="px-5 h-11 rounded-xl bg-ink-800 text-paper text-sm font-medium disabled:opacity-40 hover:bg-ink-700 transition-colors">
-                  {existing ? 'Update reflection' : 'Save reflection'}
+                  {existing ? 'Update review' : 'Save review'}
                 </button>
                 {saved && !dirty && <span className="text-xs text-moss-500">Saved</span>}
               </div>

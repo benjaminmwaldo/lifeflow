@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { StoreProvider } from '../context/store'
-import CalendarMock from './CalendarMock'
 import NotesView from './NotesView'
 import ReviewsView from './ReviewsView'
 import HistoryView from './HistoryView'
+import JournalView from './JournalView'
 
 // In-memory persistence for the offline harness (no sign-in, no network).
 function makeMemPersistence() {
@@ -34,16 +34,39 @@ function makeMemPersistence() {
   }
 }
 
+function makeMemTable() {
+  let rows = []
+  let rowNumber = 2
+  const clone = (value) => JSON.parse(JSON.stringify(value))
+  return {
+    list: async () => rows.map(clone),
+    create: async (value) => {
+      const row = { ...value, rowNumber: rowNumber++ }
+      rows.push(row)
+      return clone(row)
+    },
+    update: async (value) => {
+      const index = rows.findIndex((row) => row.rowNumber === value.rowNumber)
+      if (index >= 0) rows[index] = { ...value }
+      return clone(value)
+    },
+    remove: async (targetRowNumber) => {
+      rows = rows.filter((row) => row.rowNumber !== targetRowNumber)
+    },
+  }
+}
+
 const TABS = [
+  ['journal', 'Daily Check-in'],
   ['notes', 'Notes'],
   ['reviews', 'Reviews'],
   ['history', 'History'],
-  ['calendar', 'Calendar'],
 ]
 
 export default function MockApp() {
   const mem = useMemo(makeMemPersistence, [])
-  const [tab, setTab] = useState('notes')
+  const mockJournal = useMemo(makeMemTable, [])
+  const [tab, setTab] = useState('journal')
 
   // Expose the in-memory backend for test inspection.
   if (typeof window !== 'undefined') window.__mockPersistence = mem
@@ -66,10 +89,10 @@ export default function MockApp() {
           ))}
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
+          {tab === 'journal' && <JournalView table={mockJournal} />}
           {tab === 'notes' && <NotesView />}
           {tab === 'reviews' && <ReviewsView simplified />}
           {tab === 'history' && <HistoryView />}
-          {tab === 'calendar' && <CalendarMock />}
         </div>
       </div>
     </StoreProvider>

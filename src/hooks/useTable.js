@@ -1,5 +1,4 @@
-// Generic list + optimistic CRUD hook over a sheetsTable. Mirrors the
-// optimistic-then-sync pattern used by useEvents, minus the recurrence logic.
+// Generic list + optimistic CRUD hook over a sheetsTable.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 

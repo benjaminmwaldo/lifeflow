@@ -39,19 +39,10 @@ export function computeTargetPeriod(type, currentType, currentPeriodISO) {
   return toISODate(base)
 }
 
-// A 30-min slot at the current clock time, snapped to 15 min and clamped into
-// the visible day window (6:00–22:00).
+// A 30-minute slot at the current clock time for Google Calendar's compose link.
 export function nowEventSlot() {
   const now = new Date()
-  // Snap to the calendar's selected granularity (default 30) so a spawned event
-  // locks to :00/:30 rather than an odd :15.
-  let step = 30
-  try {
-    const v = Number(localStorage.getItem('lifeflow.cal.granularity'))
-    if (v === 15 || v === 30 || v === 60) step = v
-  } catch {
-    // ignore
-  }
+  const step = 30
   let mins = now.getHours() * 60 + now.getMinutes()
   mins = Math.round(mins / step) * step
   mins = Math.min(Math.max(mins, 0), 24 * 60 - 30)
@@ -69,13 +60,5 @@ export function buildEventFromNote(text) {
     duration_min: 30,
     title,
     notes,
-    recurrence_type: 'none',
-    recurrence_interval: 1,
-    recurrence_end: '',
-    recurrence_count: '',
-    is_exception: false,
-    exception_of_id: '',
-    exception_date: '',
-    is_cancelled: false,
   }
 }

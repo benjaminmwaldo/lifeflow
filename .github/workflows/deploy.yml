@@ -28,7 +28,6 @@ jobs:
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
           VITE_SHEET_ID: ${{ vars.VITE_SHEET_ID }}
-          VITE_SHEET_TAB_NAME: ${{ vars.VITE_SHEET_TAB_NAME }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

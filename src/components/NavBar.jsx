@@ -1,7 +1,6 @@
 const MODULES = [
-  { key: 'calendar', label: 'Calendar' },
+  { key: 'journal', label: 'Daily Check-in' },
   { key: 'notes', label: 'Notes' },
-  { key: 'journal', label: 'Journal' },
   { key: 'reviews', label: 'Reviews' },
   { key: 'goals', label: 'Goals' },
   { key: 'export', label: 'Export' },

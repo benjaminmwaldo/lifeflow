@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { gatherAll, TABLES, toCsv, triggerDownload, todayStamp } from '../lib/exportData'
 
 const TABLE_LABELS = {
-  events: 'Calendar events',
   notes: 'Notes',
   journal: 'Journal',
   goals: 'Goals',
@@ -57,7 +56,7 @@ export default function ExportView() {
 
         <div className="bg-white rounded-xl border border-ink-100 shadow-soft p-5 mb-4">
           <h3 className="text-sm font-medium text-ink-800 mb-1">Full backup</h3>
-          <p className="text-xs text-ink-400 mb-3">Everything — calendar, notes, journal, goals, reviews — in one JSON file.</p>
+          <p className="text-xs text-ink-400 mb-3">Everything in LifeFlow — daily check-ins, notes, goals, and reviews — in one JSON file.</p>
           <button
             onClick={exportJson}
             disabled={!!busy}

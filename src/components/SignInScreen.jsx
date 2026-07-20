@@ -11,7 +11,7 @@ export default function SignInScreen({ onSignIn, loading, error }) {
         </div>
         <h1 className="font-display text-3xl text-ink-800 mb-2">LifeFlow</h1>
         <p className="text-ink-400 text-sm mb-8 leading-relaxed">
-          Your calendar, notes, journal, and reviews — one organic flow, backed by
+          Your daily check-ins, notes, goals, and reviews — one organic flow, backed by
           your own Google Sheet. Sign in to load and sync.
         </p>
         <button

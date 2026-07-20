@@ -1,7 +1,5 @@
 // Generic, tab-parameterized Google Sheets table. One logical table per tab,
-// sharing the same client-side bearer token as the calendar module. This is the
-// reusable data layer for the non-calendar modules (Notes, Journal, Goals,
-// Reviews). The calendar keeps its bespoke sheetsApi.js (recurrence-specific).
+// sharing the same client-side bearer token.
 
 import { ensureAccessToken } from './googleAuth'
 
@@ -68,6 +66,21 @@ export function createTable({ tabName, columns }) {
           params: { valueInputOption: 'RAW' },
           body: { values: [columns] },
         })
+      } else {
+        const mismatch = existing.findIndex((value, i) => value !== columns[i])
+        if (mismatch !== -1 || existing.length > columns.length) {
+          throw new Error(
+            `${tabName} header does not match the expected schema at column ${mismatch + 1}. ` +
+              'Columns may only be appended; existing columns cannot be reordered.'
+          )
+        }
+        if (existing.length < columns.length) {
+          await apiFetch(`/${SHEET_ID}/values/${enc}!A1:${lastCol}1`, {
+            method: 'PUT',
+            params: { valueInputOption: 'RAW' },
+            body: { values: [columns] },
+          })
+        }
       }
     }
     metaCache = { sheetId: tab.properties.sheetId, title: tab.properties.title }

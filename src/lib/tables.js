@@ -1,6 +1,6 @@
-// Table definitions for the non-calendar modules. Each is a tab in the same
-// Google Sheet the calendar uses. Tabs are auto-created with their header row
-// on first access. Add a column by appending to the list (never reorder —
+// Table definitions for LifeFlow. Each is a tab in the same Google Sheet.
+// Tabs are auto-created with their header row on first access. Add a column by
+// appending to the list (never reorder —
 // order maps to sheet columns).
 
 import { createTable } from './sheetsTable'
@@ -29,7 +29,25 @@ export const notesTable = createTable({
 
 export const journalTable = createTable({
   tabName: 'Journal',
-  columns: ['date', 'entry', 'self_liking', 'mood'],
+  columns: [
+    'date',
+    'entry',
+    'self_liking',
+    'mood',
+    'sleep_hours',
+    'sleep_quality',
+    'prayer_scripture',
+    'exercise',
+    'eating_pattern',
+    'food_gap_8h',
+    'screen_with_meals',
+    'unplanned_media_minutes',
+    'meaningful_work',
+    'meaningful_connection',
+    'self_liking_score',
+    'energy',
+    'context_note',
+  ],
 })
 
 export const goalsTable = createTable({
@@ -39,7 +57,7 @@ export const goalsTable = createTable({
 
 export const reviewsTable = createTable({
   tabName: 'Reviews',
-  columns: ['id', 'type', 'period_date', 'reflection', 'goal_review', 'notes'],
+  columns: ['id', 'type', 'period_date', 'reflection', 'goal_review', 'notes', 'ai_checkin_done'],
 })
 
 // Per-goal review text: one row per (review period, goal). Lets each goal have

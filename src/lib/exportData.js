@@ -2,14 +2,12 @@
 // per-table CSV. The Google Sheet is itself the live backup; this is for taking
 // data out of the system (portability, archiving, moving off the app).
 
-import * as sheetsApi from './sheetsApi'
 import { notesTable, journalTable, goalsTable, reviewsTable } from './tables'
 
 const stripRowNumber = (rows) => rows.map(({ rowNumber, ...rest }) => rest)
 
 export async function gatherAll() {
-  const [events, notes, journal, goals, reviews] = await Promise.all([
-    sheetsApi.listEvents(),
+  const [notes, journal, goals, reviews] = await Promise.all([
     notesTable.list(),
     journalTable.list(),
     goalsTable.list(),
@@ -17,7 +15,6 @@ export async function gatherAll() {
   ])
   return {
     exportedAt: new Date().toISOString(),
-    events: stripRowNumber(events),
     notes: stripRowNumber(notes),
     journal: stripRowNumber(journal),
     goals: stripRowNumber(goals),
@@ -26,7 +23,6 @@ export async function gatherAll() {
 }
 
 export const TABLES = {
-  events: { columns: sheetsApi.COLUMNS, list: () => sheetsApi.listEvents() },
   notes: { columns: notesTable.columns, list: () => notesTable.list() },
   journal: { columns: journalTable.columns, list: () => journalTable.list() },
   goals: { columns: goalsTable.columns, list: () => goalsTable.list() },

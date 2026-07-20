@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "LifeFlow — a Google Sheets-backed personal productivity system (calendar, notes/ideas, journal, reviews, goals)",
+  "description": "LifeFlow — a Google Sheets-backed personal system for daily check-ins, notes, reviews, and goals",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
