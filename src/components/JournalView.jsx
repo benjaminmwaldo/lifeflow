@@ -3,7 +3,15 @@ import { useTable } from '../hooks/useTable'
 import { journalTable } from '../lib/tables'
 import { addDays, fromISODate, toISODate } from '../lib/dateUtils'
 
+// Journal + Self-liking + Mood are the main things (mirrors his DJ F22+
+// columns) — everything else here is a secondary "quick pulse" layer added
+// later. Order and visual weight in the JSX below should keep reflecting
+// that priority; don't let the measured fields creep back to the top.
 const EMPTY = {
+  entry: '',
+  self_liking: '',
+  self_liking_score: '',
+  mood: '',
   sleep_hours: '',
   sleep_quality: '',
   prayer_scripture: '',
@@ -14,10 +22,8 @@ const EMPTY = {
   unplanned_media_minutes: '',
   meaningful_work: '',
   meaningful_connection: '',
-  self_liking_score: '',
   energy: '',
   context_note: '',
-  entry: '',
 }
 
 const YES_PARTIAL_NO = [
@@ -70,9 +76,9 @@ export default function JournalView({ table = journalTable }) {
       <div className="max-w-3xl mx-auto px-4 py-6">
         <header className="flex items-center gap-2 mb-5">
           <div>
-            <h2 className="font-display text-2xl text-ink-800">Daily Check-in</h2>
+            <h2 className="font-display text-2xl text-ink-800">Journal</h2>
             <p className="text-sm text-ink-400 mt-0.5">
-              {label}{isToday ? ' · Today' : ''} · A quick pulse, not a grade
+              {label}{isToday ? ' · Today' : ''}
             </p>
           </div>
           <div className="flex-1" />
@@ -108,6 +114,61 @@ export default function JournalView({ table = journalTable }) {
             </button>
           </div>
         )}
+
+        {/* Main things: journal, self-liking, and a word or two on the general vibe. */}
+        <label className="block text-xs font-medium text-ink-500 mb-1.5">Journal</label>
+        <textarea
+          value={form.entry}
+          onChange={(event) => setField('entry', event.target.value)}
+          placeholder="How did the day go?"
+          rows={10}
+          className="w-full resize-y px-3.5 py-3 rounded-xl border border-ink-200 bg-white text-ink-800 placeholder-ink-300 leading-relaxed focus:outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100"
+        />
+
+        <div className="flex items-center justify-between mt-4 mb-1.5">
+          <label className="block text-xs font-medium text-ink-500">Self-liking</label>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-ink-300">0–10</span>
+            {Array.from({ length: 11 }, (_, n) => String(n)).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setField('self_liking_score', n)}
+                aria-label={`Self-liking ${n}`}
+                className={`w-6 h-6 rounded-md text-[11px] font-medium transition-colors ${
+                  form.self_liking_score === n
+                    ? 'bg-ink-800 text-paper'
+                    : 'bg-white border border-ink-200 text-ink-500 hover:bg-ink-50'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+        <textarea
+          value={form.self_liking}
+          onChange={(event) => setField('self_liking', event.target.value)}
+          placeholder="What do you like about yourself today?"
+          rows={5}
+          className="w-full resize-y px-3.5 py-3 rounded-xl border border-ink-200 bg-white text-ink-800 placeholder-ink-300 leading-relaxed focus:outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100"
+        />
+
+        <label className="block text-xs font-medium text-ink-500 mb-1.5 mt-4">
+          Mood <span className="font-normal text-ink-300">— a word or two, the general vibe</span>
+        </label>
+        <input
+          value={form.mood}
+          onChange={(event) => setField('mood', event.target.value)}
+          placeholder="e.g. tired but good, restless, content"
+          className="w-full px-3.5 h-11 rounded-xl border border-ink-200 bg-white text-ink-800 placeholder-ink-300 focus:outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100"
+        />
+
+        {/* Everything below is the secondary quick-pulse layer — useful, but journal/self-liking/mood are what matter first. */}
+        <div className="flex items-center gap-3 mt-8 mb-4">
+          <span className="text-xs font-semibold uppercase tracking-wide text-ink-300">Quick pulse</span>
+          <div className="flex-1 h-px bg-ink-100" />
+        </div>
 
         <Section title="Sleep & energy">
           <div className="grid sm:grid-cols-2 gap-4">
@@ -201,7 +262,7 @@ export default function JournalView({ table = journalTable }) {
           </div>
         </Section>
 
-        <Section title="Work, relationships & self">
+        <Section title="Work & connection">
           <div className="grid sm:grid-cols-2 gap-4">
             <OptionGroup
               label="Meaningful work"
@@ -214,15 +275,6 @@ export default function JournalView({ table = journalTable }) {
               value={form.meaningful_connection}
               onChange={(value) => setField('meaningful_connection', value)}
               options={YES_PARTIAL_NO}
-            />
-            <NumberField
-              label="Self-liking"
-              hint="0–10"
-              value={form.self_liking_score}
-              onChange={(value) => setField('self_liking_score', value)}
-              min="0"
-              max="10"
-              step="1"
             />
           </div>
         </Section>
@@ -238,17 +290,6 @@ export default function JournalView({ table = journalTable }) {
             rows={3}
             className="w-full resize-y px-3.5 py-3 rounded-xl border border-ink-200 bg-white text-ink-800 placeholder-ink-300 leading-relaxed focus:outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100"
           />
-
-          <label className="block text-xs font-medium text-ink-500 mb-1.5 mt-4">
-            Longer journal note <span className="font-normal text-ink-300">(optional)</span>
-          </label>
-          <textarea
-            value={form.entry}
-            onChange={(event) => setField('entry', event.target.value)}
-            placeholder="How did the day go?"
-            rows={6}
-            className="w-full resize-y px-3.5 py-3 rounded-xl border border-ink-200 bg-white text-ink-800 placeholder-ink-300 leading-relaxed focus:outline-none focus:border-moss-400 focus:ring-2 focus:ring-moss-100"
-          />
         </Section>
 
         <div className="flex items-center justify-end gap-3 pb-6">
@@ -262,7 +303,7 @@ export default function JournalView({ table = journalTable }) {
             disabled={!dirty || journal.syncing}
             className="px-6 h-11 rounded-xl bg-ink-800 text-paper text-sm font-medium disabled:opacity-40 hover:bg-ink-700 transition-colors"
           >
-            Save check-in
+            Save
           </button>
         </div>
       </div>

@@ -67,14 +67,21 @@ export function createTable({ tabName, columns }) {
           body: { values: [columns] },
         })
       } else {
+        // Warn on drift but never block reads/writes over it — a label
+        // mismatch or an extra manually-added sheet column shouldn't take
+        // the whole tab down. Reads/writes are positional against `columns`
+        // regardless of what the header row says, so a stale/odd header is
+        // cosmetic, not a correctness risk to existing data.
         const mismatch = existing.findIndex((value, i) => value !== columns[i])
-        if (mismatch !== -1 || existing.length > columns.length) {
-          throw new Error(
-            `${tabName} header does not match the expected schema at column ${mismatch + 1}. ` +
-              'Columns may only be appended; existing columns cannot be reordered.'
+        if (mismatch !== -1) {
+          console.warn(
+            `${tabName}: header column ${mismatch + 1} is "${existing[mismatch]}", ` +
+              `code expects "${columns[mismatch]}". Leaving the sheet's header row alone — ` +
+              'this is a label-only warning, not a data problem.'
           )
-        }
-        if (existing.length < columns.length) {
+        } else if (existing.length < columns.length) {
+          // Clean case: existing header is an exact prefix of the current
+          // schema (columns were only ever appended) — safe to extend it.
           await apiFetch(`/${SHEET_ID}/values/${enc}!A1:${lastCol}1`, {
             method: 'PUT',
             params: { valueInputOption: 'RAW' },
